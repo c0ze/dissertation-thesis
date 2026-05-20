@@ -1,0 +1,84 @@
+# ---------------------------------------------------------------------------
+# makefile for implementation/c -- sparse-gate MPI quantum simulator
+#
+# Targets:
+#   make                 build libqubit.a (when sources exist) and bin/qubit
+#   make test            build and run every tests/test_*.c at NP=1, 2, 4
+#   make test-large      additionally run at NP=8 (Shor-21 etc.)
+#   make demo ALGO=qft NP=4
+#   make clean / distclean
+#
+# Requirements:
+#   mpicc (OpenMPI 5.x, brew install open-mpi)
+#
+# This file grows as more source files come online. At Task 5 it does the
+# minimum: lays out directories, defines variables, provides empty test
+# and clean targets so the structure is in place for later tasks.
+# ---------------------------------------------------------------------------
+
+MPICC      ?= mpicc
+CFLAGS     ?= -std=c11 -O2 -Wall -Wextra
+LDFLAGS    ?= -lm
+
+ifeq ($(DEBUG),1)
+    CFLAGS  := -std=c11 -O0 -g -Wall -Wextra -fsanitize=address -fsanitize=undefined
+    LDFLAGS += -fsanitize=address -fsanitize=undefined
+endif
+
+BUILDDIR   := build
+BINDIR     := $(BUILDDIR)/bin
+TESTDIR    := $(BUILDDIR)/tests
+
+# Library sources will be filled in as later tasks add files.
+LIB_SRCS   :=
+LIB_OBJS   := $(LIB_SRCS:%.c=$(BUILDDIR)/%.o)
+
+# Test files. Each one becomes its own binary.
+TEST_SRCS  := $(wildcard tests/test_*.c)
+TEST_BINS  := $(TEST_SRCS:tests/%.c=$(TESTDIR)/%)
+
+# NP values to exercise.
+NPS_SMALL  := 1 2 4
+NPS_LARGE  := 1 2 4 8
+
+# Unity vendored.
+UNITY_OBJ  := $(BUILDDIR)/unity.o
+
+.PHONY: all test test-large clean distclean dirs
+
+all: dirs
+
+dirs:
+	@mkdir -p $(BUILDDIR) $(BINDIR) $(TESTDIR)
+
+# Compile a library .c into build/.
+$(BUILDDIR)/%.o: %.c | dirs
+	$(MPICC) $(CFLAGS) -c $< -o $@
+
+# Unity compiled separately with relaxed warnings.
+$(UNITY_OBJ): tests/unity/unity.c | dirs
+	$(MPICC) -std=c11 -O2 -w -c $< -o $@
+
+# Compile a test source plus the library plus Unity into a test binary.
+$(TESTDIR)/%: tests/%.c $(LIB_OBJS) $(UNITY_OBJ) | dirs
+	$(MPICC) $(CFLAGS) -I. -Itests -Itests/unity $< $(LIB_OBJS) $(UNITY_OBJ) $(LDFLAGS) -o $@
+
+# Run a single test binary at a list of NP values.
+define run_test_at_np
+	@echo "--- $(1) at NP=$(2) ---"
+	@mpirun --oversubscribe -n $(2) $(1) || (echo "FAIL: $(1) at NP=$(2)"; exit 1)
+
+endef
+
+test: $(TEST_BINS)
+	$(foreach bin,$(TEST_BINS),$(foreach np,$(NPS_SMALL),$(call run_test_at_np,$(bin),$(np))))
+	@echo "OK: all tests passed at NP=$(NPS_SMALL)"
+
+test-large: $(TEST_BINS)
+	$(foreach bin,$(TEST_BINS),$(foreach np,$(NPS_LARGE),$(call run_test_at_np,$(bin),$(np))))
+	@echo "OK: all tests passed at NP=$(NPS_LARGE)"
+
+clean:
+	rm -rf $(BUILDDIR)
+
+distclean: clean
