@@ -3,7 +3,7 @@
 
 Classical computers can be modeled by a Turing machine. A \emph{Turing Machine} is an abstract model of computation comprised of an infinitely long sequential tape, a read/write head, a set of symbols, and a set of rules for reading / writing and moving the head based on the symbol under it. These rules are called \emph{functions}, and the symbol under the head is called the \emph{state}. The machine moves from one state to another by executing a matching transition function. If no transition function matches, the machine halts.
 
-The \emph{Church-Turing Thesis} \cite {tt36} says the following: A Turing machine can compute any function computable by a reasonable physical device. Programming languages can be translated into Turing machines and vice versa. Thus, the computation of any reasonable function can be expressed by a programming language.
+The \emph{Church--Turing Thesis} \cite{ct36, tt36} says the following: a Turing machine can compute any function computable by a reasonable physical device. Programming languages can be translated into Turing machines and vice versa. Thus, the computation of any reasonable function can be expressed by a programming language.
 
 The \emph{extended} (or \emph{strong}) Church--Turing thesis goes further than this and asserts that a probabilistic Turing machine can simulate any physical device with at most polynomial overhead. This is not a statement made by Church or Turing in their 1936 papers; it is a later thesis about the resources required for simulation. A \emph{probabilistic Turing Machine} can select among a set of transition functions with varying probability, instead of just one. In the following example, real numbers preceding a state indicate the probability of transitioning to that state.
 

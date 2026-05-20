@@ -76,6 +76,10 @@
 \renewcommand{\theHequation}{\thesection.\arabic{equation}}
 
 % --- listings (for C code samples in revised chapters) ---------------------
+% columns=fullflexible + keepspaces=true makes identifiers in the rendered
+% PDF extract/search as continuous strings ("apply_controlled_phase") rather
+% than character-spaced glyphs ("a p p l y _ c o n t r o l l e d _ p h a s e").
+% upquote=true keeps ' and ` upright instead of curly inside listings.
 \lstdefinestyle{cstyle}{
     language=C,
     basicstyle=\ttfamily\small,
@@ -84,6 +88,9 @@
     stringstyle=\color{red!70!black},
     showstringspaces=false,
     breaklines=true,
+    columns=fullflexible,
+    keepspaces=true,
+    upquote=true,
     numbers=left,
     numberstyle=\tiny\color{gray},
     frame=single,

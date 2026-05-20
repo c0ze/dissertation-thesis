@@ -58,19 +58,20 @@ Build the modular exponentiation circuit from the same quantum adder primitives 
  * whole state vector as local. A distributed version must bucket the
  * (new_global, amp[idx]) pairs by destination rank, exchange them with
  * an MPI_Alltoallv, then accumulate into new_amp on each rank.       */
+/* mod_pow: uint64_t mod_pow(uint64_t base, uint64_t exp, uint64_t mod); */
 void apply_modular_exp(qreg *q, int counting_start, int t,
                        int target_start, int n,
-                       int a, int N) {
+                       uint64_t a, uint64_t N) {
     complex double *new_amp = calloc(q->local_size, sizeof *new_amp);
     for (size_t idx = 0; idx < q->local_size; idx++) {
         if (cabs(q->amp[idx]) < 1e-15) continue;
-        size_t global = global_index(q, idx);
-        size_t x = (global >> counting_start) & ((1ULL << t) - 1);
-        size_t y = (global >> target_start)   & ((1ULL << n) - 1);
-        size_t y_new = (y * mod_pow(a, x, N)) % N;
-        size_t new_global = (global
+        size_t   global = global_index(q, idx);
+        uint64_t x      = (global >> counting_start) & ((1ULL << t) - 1);
+        uint64_t y      = (global >> target_start)   & ((1ULL << n) - 1);
+        uint64_t y_new  = (y * mod_pow(a, x, N)) % N;
+        size_t   new_global = (global
             & ~(((1ULL << n) - 1) << target_start))
-            | (y_new << target_start);
+            | ((size_t)y_new << target_start);
         new_amp[local_of(q, new_global)] += q->amp[idx];
     }
     memcpy(q->amp, new_amp, q->local_size * sizeof *new_amp);
