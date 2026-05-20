@@ -1,0 +1,60 @@
+\setcounter{equation}{0}
+\section{Quantum Fourier Transform}
+\label{sec:qft}
+
+The Quantum Fourier Transform (QFT) is the workhorse subroutine of quantum computing. Anywhere a quantum algorithm benefits from period finding, phase estimation, or exploitation of hidden-subgroup structure, a QFT appears. Shor's factoring algorithm is the most famous example, but the QFT also underlies Kitaev's phase estimation, the Harrow--Hassidim--Lloyd (HHL) linear-systems algorithm, and most algebraic quantum algorithms.
+
+\subsection{Definition}
+
+The QFT on $n$ qubits is the unitary that acts on computational-basis states as
+\begin{equation}
+\mathrm{QFT}\,\ket{x} \;=\; \frac{1}{\sqrt{N}}\sum_{y=0}^{N-1} e^{2\pi i\, x y / N}\,\ket{y}, \qquad N = 2^n.
+\end{equation}
+It is the discrete Fourier transform of the amplitude vector, applied as a unitary in $O(n^2)$ gates rather than the classical $O(N\log N)$ arithmetic operations.
+
+\subsection{Circuit decomposition}
+
+Write the integer $x$ in binary as $x = x_1 x_2 \ldots x_n$ (most-significant bit first). The QFT factors into a tensor product:
+\begin{equation}
+\mathrm{QFT}\,\ket{x_1 x_2 \ldots x_n} \;=\; \frac{1}{2^{n/2}} \bigotimes_{j=1}^{n} \Bigl(\ket{0} + e^{2\pi i\, 0.x_j x_{j+1} \ldots x_n}\,\ket{1}\Bigr),
+\end{equation}
+where $0.x_j x_{j+1} \ldots x_n$ denotes the binary fraction $\sum_{\ell=0}^{n-j} x_{j+\ell} \cdot 2^{-\ell-1}$. Each output qubit ends up in a single-qubit state whose relative phase depends on a suffix of the input bits.
+
+This factorisation yields a circuit constructed from two primitives:
+\begin{itemize}
+\item the Hadamard gate $H = \tfrac{1}{\sqrt{2}}\bigl(\begin{smallmatrix} 1 & 1 \\ 1 & -1 \end{smallmatrix}\bigr)$;
+\item controlled phase rotations $R_k = \mathrm{diag}\bigl(1, e^{2\pi i / 2^k}\bigr)$.
+\end{itemize}
+The structure is: for each qubit $j$ from $1$ to $n$, apply $H$ on qubit $j$, then for each later qubit $k>j$ apply a controlled-$R_{k-j+1}$ with control $k$ targeting $j$. Finish with a bit-reversal swap of all qubits, which arises because the factorisation places amplitudes in reverse bit order.
+
+\subsection{Implementation in the simulator}
+
+In the sparse-gate API of Section~\ref{sec:parallel}, the QFT is a short double loop:
+
+\begin{lstlisting}[caption={QFT on $n$ qubits starting at register offset \texttt{start}.}]
+void apply_qft(qreg *q, int start, int n) {
+    for (int j = 0; j < n; j++) {
+        int target = start + (n - 1 - j);
+        apply_h(q, target);
+        for (int k = j + 1; k < n; k++) {
+            int control = start + (n - 1 - k);
+            double theta = 2.0 * M_PI / (double)(1ULL << (k - j + 1));
+            apply_controlled_phase(q, control, target, theta);
+        }
+    }
+    /* bit-reversal swaps */
+    for (int i = 0; i < n / 2; i++) {
+        apply_swap(q, start + i, start + n - 1 - i);
+    }
+}
+\end{lstlisting}
+
+The gate count is $n$ Hadamards plus $n(n-1)/2$ controlled phases plus $n/2$ swaps, i.e., $\Theta(n^2)$ gates in total. Each gate costs $\Theta(2^n)$ work in the simulator, giving a total simulator cost of $\Theta(n^2 \cdot 2^n)$. The classical fast Fourier transform on the same $2^n$-amplitude array would cost $\Theta(n\cdot 2^n)$; the simulated QFT is therefore slower than the classical FFT by a factor of $n$. Of course, on physical quantum hardware the QFT acts on all $2^n$ amplitudes in $\Theta(n^2)$ gate time, with no enumeration of the amplitude array required, which is the whole point.
+
+\subsection{Inverse QFT}
+
+The inverse QFT, denoted $\mathrm{QFT}^\dagger$, is required by phase estimation (and therefore by Shor's algorithm in the next section). It is obtained by running the QFT circuit in reverse with all phase rotation angles negated. In the implementation, this means iterating the outer loop from $j = n-1$ down to $0$ and applying $R_k^\dagger$ instead of $R_k$.
+
+\subsection{Why it matters}
+
+The QFT is the unitary that turns periodicity into measurable phase. Given a state whose amplitudes are periodic in the basis-state index with period $r$, the QFT produces a state whose amplitudes are concentrated near multiples of $N/r$. Measuring then yields a good rational approximation to $s/r$ for some integer $s$, from which $r$ can be recovered by continued fractions. This is the eigenvalue-extracting subroutine that Shor's algorithm uses to factor integers, and that Kitaev's phase estimation uses to extract eigenvalues of arbitrary unitaries.

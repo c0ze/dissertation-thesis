@@ -1,155 +1,100 @@
 \setcounter{equation}{0}
 \section{Library Documentation}
 
-Structure of a Matrix :
+This section documents the simulator API that would replace the historical 2004 library if the sparse-gate strategy of Section~\ref{sec:parallel} were implemented in full. The 2004 source bundled with this distribution (under \texttt{implementation/\allowbreak original/}) implements the older dense-matrix approach and is preserved as a historical artifact; the API below is what the corrected design calls for.
 
-A matrix struct contains column and row sizes and a pointer to an array of arrays of complex data structs. The GCC extension for complex numbers have been used for this project. The matrix struct also holds the row and column sizes of the matrix.
+\subsection{The quantum register}
 
-\begin{verbatim}
+A quantum register is represented by an opaque struct holding a local slice of the distributed state vector together with the MPI bookkeeping that identifies which slice this process owns:
+
+\begin{lstlisting}
 typedef struct {
-	int row_size;
-	int column_size;
-	__complex__ double ** value;
+    complex double *amp;       /* local slice of the state vector  */
+    int    n_qubits;           /* total number of qubits (global)  */
+    int    rank, n_procs;      /* MPI rank and process count       */
+    size_t local_size;         /* 2^n_qubits / n_procs amplitudes  */
+} qreg;
+\end{lstlisting}
+
+\paragraph{Construction.} \verb|qreg_create| allocates a register on the given MPI communicator and zero-initialises the amplitude array:
+\begin{lstlisting}
+qreg *q = qreg_create(20, MPI_COMM_WORLD);
+\end{lstlisting}
+
+\paragraph{Initialisation.} \verb|qreg_init_basis| sets the register to a definite computational basis state $\ket{k}$:
+\begin{lstlisting}
+qreg_init_basis(q, 0);   /* sets the register to |0...0> */
+qreg_init_basis(q, 3);   /* sets it to |...011>          */
+\end{lstlisting}
+
+\paragraph{Destruction.} \verb|qreg_destroy| frees all owned memory.
+
+\subsection{Gate primitives}
+
+Single-qubit gates apply a $2\times 2$ unitary in place on the local amplitude slice, using the sparse-iteration pattern of Section~\ref{sec:parallel}. The library provides direct wrappers for the standard one-qubit gates and a generic primitive for user-supplied $2\times 2$ matrices:
+
+\begin{lstlisting}
+void apply_h     (qreg *q, int target);                 /* Hadamard */
+void apply_x     (qreg *q, int target);                 /* Pauli-X  */
+void apply_y     (qreg *q, int target);                 /* Pauli-Y  */
+void apply_z     (qreg *q, int target);                 /* Pauli-Z  */
+void apply_phase (qreg *q, int target, double theta);   /* diag(1,e^{i theta}) */
+void apply_u     (qreg *q, int target, complex double u[2][2]);
+\end{lstlisting}
+
+Two-qubit controlled gates take a control qubit and a target qubit:
+\begin{lstlisting}
+void apply_cnot            (qreg *q, int control, int target);
+void apply_controlled_phase(qreg *q, int control, int target, double theta);
+void apply_cu              (qreg *q, int control, int target,
+                            complex double u[2][2]);
+void apply_swap            (qreg *q, int a, int b);
+\end{lstlisting}
+
+For each call, the library inspects whether the target/control qubits are local to this process. If both are local (the common case --- see Section~\ref{sec:parallel}) the gate is applied with no communication; otherwise the library transparently performs the pairwise amplitude exchange and then the local update.
+
+\subsection{Measurement and inspection}
+
+\verb|measure_all| collapses the state and returns the observed basis state on every process:
+\begin{lstlisting}
+size_t outcome = measure_all(q);
+\end{lstlisting}
+
+\verb|prob_of| returns $|\langle k | \psi \rangle|^2$ for a chosen basis state $k$ without disturbing the register:
+\begin{lstlisting}
+double p = prob_of(q, 42);
+\end{lstlisting}
+
+\verb|measure_qubit| performs a partial measurement of a single qubit and projects the state accordingly:
+\begin{lstlisting}
+int bit = measure_qubit(q, 3);
+\end{lstlisting}
+
+\subsection{Higher-level routines}
+
+The chapters on the QFT (Section~\ref{sec:qft}), Grover (Section~\ref{sec:grover}), and Shor (Section~\ref{sec:shor}) build on the primitives above. The QFT is a double loop of Hadamards and controlled phases; Grover is a uniform-superposition initialisation followed by alternating oracle and diffusion calls; Shor combines phase estimation, controlled modular exponentiation, and inverse QFT. Each is exposed as a top-level function in the library so applications need not assemble the circuit by hand:
+
+\begin{lstlisting}
+void apply_qft         (qreg *q, int start, int n);
+void apply_qft_inverse (qreg *q, int start, int n);
+void apply_grover      (qreg *q, int n, oracle_fn oracle, int iterations);
+void apply_shor_period (qreg *q, int counting_start, int t,
+                        int target_start, int n,
+                        int a, int N);
+\end{lstlisting}
+
+\subsection{Note on the bundled 2004 implementation}
+
+\begin{sloppypar}
+The C source under \texttt{implementation/original/} (files \texttt{matrix.c}, \texttt{parallel.c}, \texttt{qubit.c}, \texttt{standart.c}) implements a different API based on a dense \verb|matrix| struct of type \verb|__complex__ double**|:
+\end{sloppypar}
+
+\begin{lstlisting}
+typedef struct {
+    int row_size;
+    int column_size;
+    __complex__ double ** value;
 } matrix;
-\end{verbatim}
+\end{lstlisting}
 
-How to create a matrix :
-
-with the create matrix function. column size and row size are passed as arguments.
-ex :
-\begin{verbatim}
-matrix * m = create_matrix (2,2);
-\end{verbatim}
-How to initialize a matrix :
-
-A freshly created matrix's elements are not initialized. the init matrix function zeroes all elements of a matrix.
-ex :
-
-\begin{verbatim}
-init_matrix(m);
-\end{verbatim}
-or you can set the elements to a fixed value with the \begin{verbatim}init_matrix_c\end{verbatim} (init matrix to complex value) function.
-
-\begin{verbatim}
-__complex__ double a = 4 + 3i;
-init_matrix_c(m,a);
-\end{verbatim}
-\begin{verbatim}init_matrix_n\end{verbatim}  function sets the real parts of the elements to the given value.
-
-\begin{verbatim}
-init_matrix_n(m,3.17);
-\end{verbatim}
-or you can set the matrix to a predefined matrix, currently, hadamard gate (for a 2 by 2 matrix) and CNOT gate (for a 4 by 4 matrix) are available
-
-\begin{verbatim}
-init_hadamard(m);
-init_CNOT(m);
-\end{verbatim}
-how to set matrix values by hand :
-
-you can reach the elements in a matrix with the 'value' pointer in the matrix. You have to provide row and column numbers.
-
-\begin{verbatim}
-matrix * m2 = create_matrix(4,1);
-m2->value[0][0]=1;
-m2->value[1][0]=2;
-m2->value[2][0]=3;
-m2->value[3][0]=4;
-\end{verbatim}
-this matrix is a vector containing :
-
-\( \left( \begin{array}{c} 1 \\ 2 \\ 3 \\ 4 \end{array}\right)\) 
-
-how to print a matrix :
-
-simply, with the \begin{verbatim}print_matrix\end{verbatim} function.
-
-\begin{verbatim}
-print_matrix (m2);
-\end{verbatim}
-How to create a quantum register :
-
-a quantum register with n qubits is a vector with $2^n$ dimensions. When creating a quantum register with
-\begin{verbatim}create_qubit\end{verbatim} function, you provide the size of the register with the first parameter, and then provide the value (an integer value) which the register will hold as its initial value.
-ex :
-
-\begin{verbatim}
-m = create_qubit (2,3);
-\end{verbatim}
-will create a 1x4 matrix with
-0
-0
-0
-1
-
-as it's initial value. 3 is represented as 11 in binary, so both qubits should keep 1.
-
-\begin{verbatim}
-m = create_qubit (2,0);
-\end{verbatim}
-will create
-1
-0
-0
-0
-
-providing a larger value than the register can hold will result in an error.
-
-Deconstructor
-
-~matrix() function will destroy a matrix, freeing all the memory allocated.
-
-Matrix Operations
-
-tensor product :
-returns a pointer to a matrix which is the tensor product of two given matrices.
-The original matrices are kept untouched.
-Ex:
-
-\begin{verbatim}
-matrix * m3 ;
-m3 = tensor_product(m1,m2);
-\end{verbatim}
-Matrix multiplication :
-returns a pointer to a matrix which is the multiplication of two given matrices.
-The original matrices are kept untouched.
-Ex:
-
-\begin{verbatim}
-matrix * m3 ;
-m3 = dot_product(m1,m2);
-\end{verbatim}
-Matrix Transmission functions :
-There are three functions for easy transmission of matrices within the lam-mpi environment.
-Sending a matrix :
-\begin{verbatim}send_matrix\end{verbatim}  sends a matrix to a specified node.
-Ex:
-
-\begin{verbatim}
-send_matrix(m2,2);
-\end{verbatim}
-Receiving a matrix :
-\begin{verbatim}get_matrix\end{verbatim} gets a matrix from the specified node.
-Ex:
-
-\begin{verbatim}
-matrix * m = get_matrix(0);
-\end{verbatim}
-Broadcasting a matrix :
-broadcasts a matrix. The first argument is a pointer to the matrix to be sent (this can be (should be) a null pointer
-for the nodes who will receive the matrix, and a pointer to an actual matrix for the node who will send the matrix) the second
-argument is the rank of the node, and the last argument is the rank of the node who will make the broadcast.
-Ex:
-
-\begin{verbatim}
-matrix * m2;
-if(rank == 0)
-{
-	m2 = create_matrix (4,4);
-	__complex__ double a = 4 + 3i;
-	init_matrix_c(m2,a);
-}
-m2 = broadcast_matrix(m2,rank,0);
-printf("rank %d received matrix :\n",rank);
-print_matrix(m2);
-\end{verbatim}
+with operations \verb|create_matrix|, \verb|tensor_product|, \verb|dot_product|, and the MPI primitives \verb|send_matrix|, \verb|get_matrix|, and \verb|broadcast_matrix|. This code targets the original dense-matrix strategy critiqued in Section~\ref{sec:parallel} and is retained here for historical reference. The API documented above is the design that should replace it; implementation of the corrected library is left as future work.

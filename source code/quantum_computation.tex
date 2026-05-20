@@ -1,47 +1,53 @@
 \setcounter{equation}{0}
 \section{Quantum Computation}
 
-We are concerned with using quantum computation to produce solutions to problems which are considered intractable for classical computers. \footnote { An \emph{intractable} problem is one for which execution time grows exponentially as input size increases linearly.} To see how quantum computers can compute classically intractable problems, we need to examine how they perform computation.
+We are concerned with using quantum computation to produce solutions to problems considered intractable for classical computers.\footnote{An \emph{intractable} problem is one for which execution time grows exponentially as input size increases linearly.} To see how quantum computers can solve classically intractable problems, we need to examine how they perform computation.
 
-The building block of the quantum computer is the \emph{qubit}, or quantum bit. A qubit is an abstract value, represented by nano scale properties of physical matter. Qubits have been implemented using ion charge, photon polarization, nuclear spin of atoms, and nuclear spin of impurities in silicon chips.
+The building block of the quantum computer is the \emph{qubit}, or quantum bit. A qubit is an abstract value, realised by nano-scale properties of physical matter. Qubits have been implemented using ion charge, photon polarisation, nuclear spins of atoms, and nuclear spins of impurities in silicon chips.
 
-Classical bits abstractly represent values of 0 or 1 by the absence or presence of voltage. In contrast , a qubit represents both a 0 and 1 simultaneously due to superposition.
+Classical bits abstractly represent values of $0$ or $1$ by the absence or presence of voltage. A qubit, by superposition, represents a linear combination of $0$ and $1$ simultaneously.
 
-Since qubits represent two values at once, \emph{n} qubits represent $2^n$ values. Thus, quantum computers operate on exponential data with only linear input. For example: two qubits represent the values 00 01 10 and 11 simultaneously. The probability of the value which will be observed is represented by a complex number called \emph{probability amplitude}.
+An $n$-qubit register holds a superposition over $2^n$ basis states. Two qubits, for example, hold a superposition over the four states $\ket{00},\ket{01},\ket{10},\ket{11}$, each weighted by a complex \emph{probability amplitude}. Probability amplitudes are mathematically analogous to a wave: they can be positive or negative (or in general complex), and they interfere. The classical probability of an outcome is the squared magnitude of its amplitude. Quantum computation manipulates probability amplitudes through unitary gates so that, on measurement, the amplitudes of desired outcomes interfere constructively while those of undesired outcomes interfere destructively.
 
-Probability amplitudes are mathematically analogous to a wave: they can be positive or negative, and are subject to interference. The probability amplitude of a value is the sum of probability amplitudes over all entangled particles. The classical probability of a value is given by the square of its probability amplitude. Quantum computation is performed by manipulating probability amplitudes of qubits.
+\subsection{Unitary evolution as computation}
 
-A qubit can be represented by unit vector in the Hilbert space $C^2$, where C is the set of complex numbers. An n-qubit system can be described by the tensor product of these Hilbert spaces:
+A single qubit lives in the Hilbert space $\mathbb{C}^2$; an $n$-qubit register lives in the tensor product
+\begin{equation}
+\mathcal{H} \;=\; \underbrace{\mathbb{C}^2 \otimes \mathbb{C}^2 \otimes \cdots \otimes \mathbb{C}^2}_{n \text{ factors}} \;=\; \mathbb{C}^{2^n}.
+\end{equation}
+We compute a function $f$ on these qubits by applying a unitary operator $U$ to the state vector:
+\begin{equation}
+\ket{\psi'} \;=\; U \ket{\psi}.
+\end{equation}
+Any classical function can be expressed in this form using the Bennett ancilla construction from the previous section. We can therefore think of $U$ as a basic quantum gate, performing the role of a classical truth table, and represent it as a unitary matrix --- which by definition is reversible, since $U^{-1} = U^\dagger$.
 
-%formul
+\subsection{From Hamiltonians to gates}
 
-We can compute a function f on these qubits by applying a unitary operator \emph{U}:
+To apply a target unitary $U$ on physical hardware, we find a Hamiltonian $H$ which solves
+\begin{equation}
+U \;=\; e^{-iHt/\hbar}.
+\label{eq:U-from-H}
+\end{equation}
+A solution exists as long as $U$ is unitary: by the spectral theorem, every unitary matrix can be written as $e^{iA}$ for some Hermitian $A$, so taking $H = -\hbar A / t$ gives the desired Hamiltonian. From the standpoint of algorithms we can usually treat $H$ as an implementation detail and reason directly with $U$.
 
-%formul
+By applying $U$ to a superposition over all $2^n$ inputs, we effectively apply $f$ to all of them in parallel --- the so-called \emph{quantum parallelism}. This parallelism is the basic resource that quantum algorithms exploit, though as discussed below, exponential parallelism does not directly translate into exponential computational power; algorithms must arrange interference so that useful information survives measurement.
 
-when f is one-to-one, ie reversible, we can always find a unitary operator. Any classical function we wish to compute can be made reversible using extra bits and acceptable operational overhead. We can think of \emph{U} as a basic quantum gate, performing the role of a classical truth table. We can represent \emph{U} as a unitary matrix, which by definition is reversible.
+\subsection{Measurement and the central challenge}
 
-To apply \emph{U} and thereby compute our function \emph{f}, we find the Hamiltonian \emph{H} which solves the equation :
+Obtaining the computed answer presents a new challenge. The superposition of $n$ qubits ranges over $2^n$ possible computational-basis states; we sometimes refer to it loosely as a ``wave function''. Measuring this state (Postulate 3) collapses the superposition, selecting one basis state from the $2^n$ with probability equal to the squared magnitude of its amplitude. This selection effectively destroys the rest of the computed information. Quantum algorithms must therefore use the interference property of amplitudes to concentrate probability mass onto basis states encoding the correct answer before measurement is performed.
 
-%formul
+\subsection{Practical limitations}
 
-Absolution exists as long as \emph{U} is unitary. By applying \emph{U} to a vector on \emph{n} qubits we apply \emph{f} to all possible $2^n$ inputs in parallel. This parallelism is how quantum computation overcomes classically intractable problems.
+Quantum computing is not without drawbacks. The exponential parallelism inherent in quantum computation does not, by itself, imply exponential computational power. Practical implementation is hindered by decoherence, caused both by interaction with the environment and by intrinsic decay of quantum states. Quantum error-correcting codes are necessary to mitigate decoherence and error propagation in the real world; these codes require many physical qubits to encode a single logical qubit. Some quantum architectures have impractical environmental requirements (e.g., operating at temperatures near absolute zero), with classical control hardware that does not function well in the same environment.
 
-Obtaining the computed solution presents a new challenge. The superposition of n qubits have $2^n$ possible states, and is called a \emph{wave} function. By observing the value of a vector of qubits we \emph{collapse} this wave function, selecting one state from exponentially many to produce a classical bit vector.
-This collapsing effectively destroys the solution. However, we can use the interference property of probability of observing the correct answer.
+Because of these difficulties, simulation on classical computers remains essential to algorithm development and analysis. Quantum simulators allow inspection of the full state, accumulation of errors under noise models, and feasibility studies that would otherwise require physical hardware. However, simulating an $n$-qubit register on a classical machine requires storing $2^n$ complex amplitudes, which restricts simulators to relatively small register sizes --- the central scaling problem that motivates the parallel implementation discussed later in this thesis.
 
-Quantum computing is not without drawbacks. Firstly, the exponential parallelism inherent in quantum computation does not imply exponential computational power. In addition, practical implementation is hindered by decoherence, caused by interference from the environment as well as the exponential decay times of quantum states. Quantum error correcting codes are necessary to mitigate decoherence and error propagation in the real world. These
-codes require many physical qubits to accurately encode a single logical qubit of information. Finally, certain quantum architectures have impractical requirements, such as operating at near absolute zero temperature. Current quantum computers require classical control components, and CMOS transistors cannot be used in such an environment.
-
-Due to these difficulties, simulation is important for the development and advancement of quantum algorithms. Quantum simulators run on classical computers and allow state observation, analysis of error accumulation, and feasibility studies. However, simulating a $2^n$ dimensional Hilbert space on a classical system requires manipulating bit vectors of size $2^n$, whereas quantum computers need only \emph{n} qubits. As a result, quantum simulators are restricted to small numbers of qubits.
-
-Real quantum computers do exist which operate on 5-7 qubits. Shor's algorithm was successfully demonstrated on a 7-qubit machine. 
+Real quantum computers do exist that operate on 5--7 qubits, and Shor's algorithm was demonstrated on a 7-qubit machine in 2001 \cite{vandersypen2001}.
 
 \begin{figure}
 \begin{center}
-\includegraphics{20000815_chuang_vial}
+\includegraphics[width=0.55\textwidth]{20000815_chuang_vial}
 \end{center}
-\label{IBM'S 5 qubit quantum computer}
-\caption{ Dr. Isaac Chuang, research staff member at IBM's Almaden Research Center (San Jose, Calif.), holds a quantum computer -- a glass tube containing specially designed molecules that can solve some of the most difficult mathematical problems exponentially faster than a conventional computer. }
+\caption[Dr.\ Isaac Chuang holding a 7-qubit NMR quantum computer.]{Dr.\ Isaac Chuang of IBM's Almaden Research Center holding a 7-qubit nuclear-magnetic-resonance quantum computer --- a glass tube of specially designed molecules whose nuclear spins act as qubits.}
+\label{fig:ibm-vial}
 \end{figure}
-

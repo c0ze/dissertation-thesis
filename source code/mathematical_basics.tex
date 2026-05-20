@@ -1,46 +1,57 @@
 \setcounter{equation}{0}
 \section{Mathematical Basics}
 
-Qubits are conventionally represented as Ket vectors in the \emph{Dirac (Bra-Ket) notation}, which is common in quantum physics texts. The notation defines the Ket column vector, and its row vector transpose the Bra. The Ket vector $\vec{x}$ is denoted by $\ket{\phi}$ = \( \left( \begin{array}{ccc} x_1 \\ x_2 \end{array}\right)\) , and Bra vector $\vec{y}$ is denoted $\bra{\psi}$ = \( \left( \begin{array}{ccc} y_1 & y_2 \end{array}\right)\). In quantum computation, the expression $\ket{0}$ represents quantum zero, and $\ket{1}$ represents quantum one. The state of a qubit can then be represented by the expression $\alpha\ket{0}$+$\beta\ket{1}$, where $\alpha$ and $\beta$ are the amplitudes of zero and one, respectively. The probability of seeing $\ket{0}$ in this state is $\left|\alpha\right|^2$, and $\ket{1}$ is $\left|\beta\right|^2$. As long as our system is coherent, the sum of these probabilities must be 1. So, in this example, $\left|\alpha\right|^2$ + $\left|\beta\right|^2$ = 1. Similarly, an n-qubit register will have $2^n$ amplitudes, each determining the probability that the binary number corresponding to it during measurement, and the sum of their squares will be 1.
+\subsection{Dirac notation and the single-qubit state space}
 
-There is also an alternative, matrix notation for the quantum computation. The group of amplitudes that describe the state of a quantum register is always a unit vector. According to convention, a qubit with state $\ket{0}$, which is guaranteed to read 0 when measured, is represented by the vector 
+Qubits are conventionally represented as \emph{ket} vectors in the Dirac (bra--ket) notation, which is standard in quantum physics. A ket $\ket{\psi}$ denotes a column vector and its conjugate transpose $\bra{\psi}$ is the bra (a row vector). In quantum computation, the expression $\ket{0}$ represents the quantum analogue of the classical bit value $0$, and $\ket{1}$ the analogue of $1$.
 
-\begin{center}
-\( \left( \begin{array}{ccc} 1 \\ 0 \end{array}\right)\), 
-\end{center}
-a qubit with state $\ket{1}$ is represented by the vector 
+The state of a qubit can then be written as
+\begin{equation}
+\ket{\psi} = \alpha\ket{0} + \beta\ket{1},
+\end{equation}
+where $\alpha,\beta\in\mathbb{C}$ are the \emph{probability amplitudes} of $\ket{0}$ and $\ket{1}$ respectively, and (by Postulate 1) $|\alpha|^2 + |\beta|^2 = 1$. The probability of obtaining outcome $0$ on a computational-basis measurement is $|\alpha|^2$, and of $1$ is $|\beta|^2$. More generally, an $n$-qubit register has $2^n$ amplitudes whose squared magnitudes sum to $1$.
 
-\begin{center}
-\( \left( \begin{array}{ccc} 0 \\ 1 \end{array}\right)\) 
-\end{center}
-(these are called the basis states). So the amplitude of seeing $\ket{0}$ is given in the first row, and seeing $\ket{1}$ is given in the second row. An arbitrary qubit state is then represented by the vector 
+In matrix form the computational-basis states are
+\begin{equation}
+\ket{0} = \begin{pmatrix} 1 \\ 0 \end{pmatrix}, \qquad
+\ket{1} = \begin{pmatrix} 0 \\ 1 \end{pmatrix},
+\end{equation}
+and an arbitrary single-qubit state is the unit vector $(\alpha,\beta)^T$.
 
-\begin{center}
-\( \left( \begin{array}{ccc} \alpha \\ \beta \end{array}\right)\), 
-\end{center}
-where $\alpha$ and $\beta$ are complex numbers and 
+\subsection{The tensor product and the multi-qubit state space}
 
-\begin{center}
-$\left|\alpha\right|^2$ + $\left|\beta\right|^2$ = 1.
-\end{center}
-The state of a register consisting of n qubits is represented by the tensor product of the individual states of the qubits in it.
+The state space of a composite system is the tensor product of the component state spaces (Postulate 4). For matrices $A$ ($n\times m$) and $B$ ($p\times q$), the Kronecker (tensor) product is the $np\times mq$ matrix
+\begin{equation}
+A\otimes B \;=\; \begin{pmatrix} a_{11}B & \cdots & a_{1m}B \\ \vdots & \ddots & \vdots \\ a_{n1}B & \cdots & a_{nm}B \end{pmatrix}.
+\end{equation}
+Specialised to two column vectors $\vec{a}\in\mathbb{C}^n$ and $\vec{b}\in\mathbb{C}^m$,
+\begin{equation}
+\vec{a}\otimes\vec{b} \;=\; \bigl(a_1 b_1,\; a_1 b_2,\; \ldots,\; a_1 b_m,\; a_2 b_1,\; \ldots,\; a_2 b_m,\; \ldots,\; a_n b_1,\; \ldots,\; a_n b_m\bigr)^T.
+\end{equation}
 
-For two matrices \emph{A} and \emph{B}, where \emph{A} is \emph{n} by \emph{m}, \emph{A}$\bigotimes$\emph{B} equals :
+\paragraph{Convention.} Throughout this thesis we number the qubits of an $n$-qubit register $0, 1, \ldots, n-1$ from the least significant bit upward --- the natural indexing for code --- and write tensor products in \emph{big-endian} order, with the more significant qubit on the left. So for two qubits indexed $1$ (more significant) and $0$ (less significant), with single-qubit kets $\ket{a}=(a_0, a_1)^T$ on qubit $1$ and $\ket{b}=(b_0, b_1)^T$ on qubit $0$,
+\begin{equation}
+\ket{a}_1 \otimes \ket{b}_0 \;=\; \begin{pmatrix} a_0 b_0 \\ a_0 b_1 \\ a_1 b_0 \\ a_1 b_1 \end{pmatrix}.
+\end{equation}
+Equivalently, the index of basis state $\ket{x_{n-1} x_{n-2} \ldots x_0}$ in the amplitude vector is the integer $\sum_{k=0}^{n-1} x_k \cdot 2^k$. Fixing this convention once and using it consistently is essential: changing endianness mid-derivation swaps amplitude indices and silently breaks every matrix--vector multiplication that follows.
 
-\( \left( \begin{array}{ccc} a_{11} & ... & a_{1m} \\ ... & ... & ... \\ a_{n1} & ... & a_{nm} \end{array}\right)\)$\bigotimes$=\( \left( \begin{array}{ccc} a_{11}B & ... & a_{1m}B \\ ... & ... & ... \\ a_{n1}B & ... & a_{nm}B \end{array}\right)\)
+\subsection{Single-qubit gates as operators on a register}
 
-So, the tensor product of two vectors $\vec{a}$ and $\vec{b}$ equals :
+If $U$ is a $2\times 2$ unitary and we want to apply it to qubit $k$ of an $n$-qubit register (with qubits indexed $0,\ldots,n-1$ from the least significant bit, which is the convenient indexing for code), the operator on the full $2^n$-dimensional space is
+\begin{equation}
+U_k \;=\; I^{\otimes(n-1-k)} \,\otimes\, U \,\otimes\, I^{\otimes k}.
+\label{eq:single-qubit-on-register}
+\end{equation}
+This is a $2^n \times 2^n$ matrix, but it is extremely sparse: each row has exactly two non-zero entries, in two specific columns. We will see in Section~\ref{sec:parallel} that materialising $U_k$ as a dense matrix is the single mistake one most wants to avoid in a state-vector simulator --- the matrix never needs to be built explicitly.
 
-\begin{center}
-\( \left( \begin{array}{ccc} a_1 \\ ... \\ a_n \end{array}\right)\)$\bigotimes$\( \left( \begin{array}{ccc} b_1 \\ ... \\ b_m \end{array}\right)\)=\( \left( \begin{array}{ccc} a_1b_1 \\ ... \\ a_1b_m \\ a_2b_1 \\ ... \\ a_2b_m \\ ... \\ ... \\ a_nb_1 \\ ... \\ a_nb_m \end{array}\right)\)
-\end{center}
-So a register with two qubits where the bits are \( \left( \begin{array}{ccc} a_1 \\  a_2 \end{array}\right)\) and \( \left( \begin{array}{ccc} b_1 \\  b_2 \end{array}\right)\), respectively can be represented as 
+\subsection{Unitary representation of arbitrary classical functions}
 
+A quantum program transforming an $n$-qubit register from input to output state can in principle be written as a $2^n \times 2^n$ unitary matrix which, when multiplied by the input-state vector, yields the output-state vector. Quantum computation must be information-lossless (and therefore reversible at each gate); the operator must be unitary.
 
-\( \left( \begin{array}{ccc} a_1b_1 \\  a_2b_1 \\ a_1b_2 \\  a_2b_2\end{array}\right)\) where, of course
+What about classical functions that are not bijections? Any classical function $f:\{0,1\}^n \to \{0,1\}^m$ can be made reversible --- and hence unitary --- using the Bennett construction. Append an $m$-qubit ancilla register initialised to $\ket{0}$ and define
+\begin{equation}
+U_f\, \ket{x}\ket{0} \;=\; \ket{x}\ket{f(x)}.
+\end{equation}
+The first register is preserved, so $U_f$ is a permutation of computational basis states and therefore a unitary matrix on the joint $2^{n+m}$-dimensional space \cite{bennett1973}. This is the standard ``bit oracle'' pattern used by Deutsch--Jozsa, Grover, and Shor (and reappears in Sections~\ref{sec:grover} and~\ref{sec:shor}). The earlier claim --- common in informal expositions --- that a unitary exists ``whenever $f$ is one-to-one'' is technically insufficient: it is the Bennett ancilla trick that promotes \emph{any} classical function to a unitary, regardless of whether the original $f$ was injective.
 
-\begin{center}
-$\left|a_1b_1\right|^2$ + $\left|a_1b_2\right|^2$ + $\left|a_2b_1\right|^2$ + $\left|a_2b_2\right|^2$= 1.
-\end{center}
-A quantum program which transforms a register of $n$ qubits from an input state to an output state can be represented as $2^n$ by $2^n$ matrix, which, when multiplied by the input state vector, gives the output state vector. Because Quantum Computation should be information lossless (ie reversible), this matrix should be a unitary matrix.
-The combined effect of several single-qubit programs which run parallelly on the qubits in a register can be represented as the tensor product of their individual matrices.
+The combined effect of single-qubit gates applied in parallel to disjoint qubits in a register is the tensor product of the individual gate matrices. Combined with the in-place sparse-application algorithm of Section~\ref{sec:parallel}, this is all the machinery one needs to simulate any quantum circuit.

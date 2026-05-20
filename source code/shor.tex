@@ -1,0 +1,91 @@
+\setcounter{equation}{0}
+\section{Shor's Factoring Algorithm}
+\label{sec:shor}
+
+Shor's algorithm \cite{ptafpf94} is the most famous quantum algorithm: it factors integers in polynomial time, breaking RSA in principle. The full algorithm reduces integer factoring to a quantum subroutine for finding the multiplicative order of a random element, with the order-finding subroutine itself reducing to quantum phase estimation built on the QFT of the previous section.
+
+\subsection{Reduction to order finding}
+
+To factor a composite integer $N$, pick a random $a$ with $\gcd(a,N)=1$. Find the multiplicative order of $a$ modulo $N$ --- the smallest positive integer $r$ with $a^r \equiv 1 \pmod{N}$. Then:
+\begin{itemize}
+\item if $r$ is odd, restart with a new $a$;
+\item if $a^{r/2} \equiv -1 \pmod{N}$, restart;
+\item otherwise, $\gcd(a^{r/2} \pm 1,\, N)$ are non-trivial factors of $N$.
+\end{itemize}
+The probability of obtaining a useful $r$ is bounded below by a constant: Shor showed it is at least $1/2$ for $N$ a product of two distinct odd primes, so a constant number of random choices of $a$ suffice in expectation. The classical post-processing (gcds and the continued-fraction step below) is trivial. The hard part --- the part for which we need a quantum computer --- is finding $r$.
+
+\subsection{Order finding via quantum phase estimation}
+
+Define the unitary $U_a$ on $n = \lceil \log_2 N \rceil$ qubits by
+\begin{equation}
+U_a \ket{y} \;=\; \ket{a\,y \bmod N}.
+\end{equation}
+The eigenvalues of $U_a$ are $e^{2\pi i\, s / r}$ for $s = 0,1,\ldots,r-1$. Quantum phase estimation extracts a (good rational approximation to a) random one of these eigenvalues, and the continued-fraction expansion recovers the denominator $r$.
+
+The circuit uses two registers:
+\begin{itemize}
+\item a \emph{counting} register of $t = 2n+1$ qubits, initialised to $\ket{0}^{\otimes t}$;
+\item a \emph{target} register of $n$ qubits, initialised to $\ket{1}$.
+\end{itemize}
+The algorithm proceeds:
+\begin{enumerate}
+\item Apply $H^{\otimes t}$ to the counting register, producing the uniform superposition.
+\item For each counting qubit $j = 0,1,\ldots,t-1$, apply a controlled-$U_a^{2^j}$ from counting qubit $j$ to the target register. This entangles the counting register with $\ket{a^x \bmod N}$ in the target.
+\item Apply the inverse QFT (Section~\ref{sec:qft}) to the counting register.
+\item Measure the counting register to obtain an integer $c \in \{0,1,\ldots,2^t-1\}$.
+\item Compute $r$ from $c/2^t$ via the continued-fraction expansion.
+\end{enumerate}
+After step 2 the joint state is
+\begin{equation}
+\frac{1}{\sqrt{2^t}}\sum_{x=0}^{2^t - 1} \ket{x} \ket{a^x \bmod N}.
+\end{equation}
+The inverse QFT in step 3 concentrates probability mass on values of $c$ such that $c/2^t \approx s/r$ for some integer $s\in\{0,1,\ldots,r-1\}$, and the continued-fraction algorithm recovers $r$ from this rational approximation with high probability.
+
+\subsection{The expensive subroutine: modular exponentiation}
+
+Implementing the controlled-$U_a^{2^j}$ gates is the dominant cost of Shor's algorithm. The standard construction builds quantum ripple-carry adders, lifts those to modular addition, lifts modular addition to modular multiplication, and finally lifts modular multiplication to modular exponentiation. The most efficient known circuits use $O(n^3)$ gates and dominate the algorithm's total gate count. The Beauregard $2n+1$-qubit circuit \cite{beauregard2003} is the standard textbook construction.
+
+In a state-vector simulator, there are two options.
+
+\paragraph{Honest implementation.}
+Build the modular exponentiation circuit from the same quantum adder primitives a physical machine would use. Useful for studying noise, gate counts, and ancilla overhead. The Beauregard circuit and its variants take this route.
+
+\paragraph{Simulator shortcut.} Since the simulator has direct access to all amplitudes, we can update the target register's basis-state index classically for each non-zero amplitude in the counting register. The simulated quantum state is identical to the one produced by the honest circuit, but the time and ancilla costs are dramatically lower:
+
+\begin{lstlisting}[caption={Modular exponentiation, single-process simulator shortcut. Iterates over basis states, classically computes $a^x \bmod N$, and rewrites the target register. See note below for the distributed case.}]
+/* Note: this version assumes a single-process simulator: new_global may
+ * fall on a different rank than idx, but local_of() here treats the
+ * whole state vector as local. A distributed version must bucket the
+ * (new_global, amp[idx]) pairs by destination rank, exchange them with
+ * an MPI_Alltoallv, then accumulate into new_amp on each rank.       */
+void apply_modular_exp(qreg *q, int counting_start, int t,
+                       int target_start, int n,
+                       int a, int N) {
+    complex double *new_amp = calloc(q->local_size, sizeof *new_amp);
+    for (size_t idx = 0; idx < q->local_size; idx++) {
+        if (cabs(q->amp[idx]) < 1e-15) continue;
+        size_t global = global_index(q, idx);
+        size_t x = (global >> counting_start) & ((1ULL << t) - 1);
+        size_t y = (global >> target_start)   & ((1ULL << n) - 1);
+        size_t y_new = (y * mod_pow(a, x, N)) % N;
+        size_t new_global = (global
+            & ~(((1ULL << n) - 1) << target_start))
+            | (y_new << target_start);
+        new_amp[local_of(q, new_global)] += q->amp[idx];
+    }
+    memcpy(q->amp, new_amp, q->local_size * sizeof *new_amp);
+    free(new_amp);
+}
+\end{lstlisting}
+
+The listing as written assumes the entire state vector is held on a single process; under the distributed layout of Section~\ref{sec:parallel}, $U_a^x$ permutes basis-state indices in a way that can move amplitude across rank boundaries, so a distributed implementation must perform an all-to-all redistribution of $(\text{new\_global}, q\!\to\!\text{amp}[\text{idx}])$ pairs --- typically by bucketing per destination rank and exchanging with \verb|MPI_Alltoallv| --- before accumulating into \verb|new_amp|. This shortcut is dishonest as a model of physical execution --- it tells us nothing about real gate count or noise --- but it produces the correct quantum state for studying the information-theoretic behaviour of the algorithm, and runs in seconds where the honest circuit would take hours.
+
+\subsection{Classical post-processing}
+
+After measurement we have $c \in \{0, \ldots, 2^t - 1\}$. Compute the continued-fraction expansion of $c/2^t$ and find the convergent $p/q$ with $q < N$ and $|c/2^t - p/q| < 1/(2 \cdot 2^t)$. If $q$ is the true order of $a$ modulo $N$, we are done; otherwise verify $a^q \equiv 1 \pmod{N}$, and if not, restart the quantum portion of the algorithm. The continued-fraction step succeeds with constant probability per quantum run, so a constant expected number of repetitions suffices.
+
+\subsection{Resource requirements}
+
+To factor an $n$-bit integer $N$, Shor's algorithm requires approximately $2n+1$ counting qubits plus $n$ target qubits plus $\Theta(n)$ ancillas for modular arithmetic --- roughly $5n$ qubits in total. For RSA-2048 this is about $10{,}000$ logical qubits; under realistic surface-code overhead the physical qubit count rises to millions. This explains why factoring real-world RSA keys remains out of reach despite the algorithm being more than three decades old.
+
+In simulation, the qubit count is the binding constraint, not the gate count. Factoring $N=15$ requires roughly $20$ qubits ($16\,\text{MB}$ of state-vector memory --- fits on a phone). Factoring $N=21$ requires $\sim 25$ qubits ($512\,\text{MB}$ --- fits on a laptop). Factoring a 32-bit number requires $\sim 160$ qubits, far beyond what state-vector simulation on \emph{any} conceivable classical hardware can reach. This is the asymptotic gap that motivated the entire field --- and the reason why simulation is fundamentally a tool for algorithm design and small-scale validation, not a substitute for a physical quantum computer.

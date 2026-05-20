@@ -1,7 +1,108 @@
 \setcounter{equation}{0}
 \section{Parallel Simulation}
+\label{sec:parallel}
 
-In this thesis, the LAM message passing interface (MPI) has been used distribute the computation (maintained by Indiana university)\footnote{http://www.lam-mpi.org/}. The program is SIMD (Single Instruction Multiple Data), with each node running a copy of the same code, but operating on different datas. The heaviest computational burden in the simulation of a quantum computer is the matrix multiplication when a register is applied a quantum program. The resulting rows of the output vector contain n multiplications, and n-1 additions for a quantum register with n qubits. Although all nodes will be running the same code, one of them will perform special tasks, it will be used to distribute the data (input vector and quantum program) and get the results (output vector). This node will be called the master node.
-A strategy is to keep the probability amplitudes of each qubit on different processors, and apply the quantum gates to individual qubits. However this approach doesn't let us obtain the output vector after the execution of the quantum program, so it is required to collect the qubit's values in a single processor and perform a tensor product to get the output vector, which implies serious communication and computation overheads.
-Another strategy is to assign each row of the input vector to individual nodes, and perform the computation of the corresponding row of the outcome vector on this node. Since only one row of the Quantum program is needed to calculate the output vector's row, the quantum program can be efficiently distributed. However, with this method, the nodes have to communicate the members of the input vector with each other, which increases the communication overhead, and code complexity.
-Since all the nodes must have all the members of the input vector to calculate the corresponding row of the output vector, it is quite logical to distribute a copy of the input vector to all processors before execution. The program supplied with this thesis uses this strategy, it broadcasts the input vector to all nodes, to minimize the communication overhead. Then the quantum program is divided into chunks of appropriate sizes and distributed to corresponding nodes. With this strategy, it is possible to efficiently distribute the bulk of the computation among the worker nodes. After the computation is finished, the nodes begin broadcasting their results. Actually, if each node sent it's result to the master node, it would be possible to get the output vector on the master node. However, if the quantum programs are applied sequentially, this approach needs to send the output vector to the worker nodes as the input vector of the next quantum program, thus increasing the communication overhead. So it is wise to keep a copy of the output vector on all nodes to minimize the communication overhead. Depending on the network architecture, it may be more efficient to use a hypercube template to gather all the data on all the nodes (if nodes are connected with a hypercube topology). However, with a classical star topology, plain broadcasts of the results will be more efficient.
+This section describes the strategy adopted by the present implementation, and an important correction to the strategy proposed in earlier drafts of this thesis. The earlier strategy --- distributing rows of a $2^n \times 2^n$ \emph{program matrix} across nodes and broadcasting the input state vector --- is preserved in the bundled C source as a historical artifact, but it is the wrong primitive for a scalable simulator. We explain why, and then describe what the right primitive looks like.
+
+\subsection{Why the dense-matrix approach fails}
+
+The simulator's primary task is to apply a sequence of quantum gates to a state vector. A na\"{i}ve formulation treats each gate as a dense $2^n \times 2^n$ unitary and multiplies it by the $2^n$-dimensional state vector. This is the approach adopted by the original library: a master node broadcasts the input state vector to all worker nodes, the program matrix is partitioned by rows, and each worker multiplies its assigned rows by the broadcast vector.
+
+The defect is not in the parallelisation but in the size of the operator being parallelised. The state vector itself is only $2^n$ complex numbers, each $16$ bytes (one complex-double pair) --- for $n=25$ this is $2^{29}$ bytes $= 512\,\text{MB}$, large but tractable on 2004-era hardware; for $n=30$, $2^{34}$ bytes $= 16\,\text{GB}$, comfortably distributable across a small cluster. A general $2^n \times 2^n$ unitary, by contrast, has $2^{2n}$ complex entries, i.e.\ $2^{2n+4}$ bytes. For $n=25$ that is $2^{54}$ bytes, roughly $16\,\text{PB}$; for $n=30$, $2^{64}$ bytes, roughly $16\,\text{EB}$. The operator cannot be \emph{stored} anywhere, let alone partitioned across nodes. No amount of cluster bandwidth recovers from running out of memory once $n$ pushes the operator past the cluster's aggregate RAM.
+
+The original implementation thus solves the wrong problem. Even with perfect parallel speedup, dense matrix--vector multiplication scales as $\Theta(2^{2n})$ in both memory and runtime per gate, which is exactly the asymptotic the simulator has to defeat in order to be useful.
+
+\subsection{The right primitive: in-place sparse gate application}
+
+Every quantum circuit decomposes into one- and two-qubit gates. A single-qubit gate $U$ on qubit $k$ of an $n$-qubit register acts non-trivially on only two amplitudes per basis-state pair: those whose indices differ only in bit $k$. Equivalently, recalling Equation~\ref{eq:single-qubit-on-register} from the previous chapter,
+\begin{equation}
+U_k \;=\; I^{\otimes(n-1-k)} \otimes U \otimes I^{\otimes k}
+\end{equation}
+is a sparse $2^n \times 2^n$ matrix with exactly two non-zero entries per row. Rather than constructing this matrix, we apply $U$ \emph{in place} on the state-vector array by iterating over the $2^{n-1}$ amplitude pairs the gate couples and applying a $2\times 2$ multiplication to each:
+
+\begin{lstlisting}[caption={Single-qubit gate applied in place on the state vector.}]
+void apply_single_qubit_gate(complex double *amp, int n,
+                             complex double u[2][2], int k) {
+    size_t stride = 1ULL << k;
+    size_t step   = stride << 1;
+    for (size_t base = 0; base < (1ULL << n); base += step) {
+        for (size_t off = 0; off < stride; off++) {
+            size_t i0 = base + off;          /* bit k = 0 */
+            size_t i1 = i0 + stride;         /* bit k = 1 */
+            complex double a0 = amp[i0];
+            complex double a1 = amp[i1];
+            amp[i0] = u[0][0]*a0 + u[0][1]*a1;
+            amp[i1] = u[1][0]*a0 + u[1][1]*a1;
+        }
+    }
+}
+\end{lstlisting}
+
+This is $\Theta(2^n)$ work, not $\Theta(2^{2n})$. No matrix beyond the gate's own $2\times 2$ is ever materialised. The outer loop visits each amplitude pair exactly once and is trivially parallelisable.
+
+A controlled-$U$ gate with control qubit $c$ and target qubit $t$ has the same shape: iterate over amplitude pairs where the control bit is set, and apply $U$ to each:
+
+\begin{lstlisting}[caption={Controlled single-qubit gate.}]
+void apply_controlled_gate(complex double *amp, int n,
+                           complex double u[2][2], int c, int t) {
+    size_t cmask = 1ULL << c;
+    size_t tmask = 1ULL << t;
+    for (size_t i = 0; i < (1ULL << n); i++) {
+        if ((i & cmask) && !(i & tmask)) {
+            size_t j = i | tmask;
+            complex double a0 = amp[i];
+            complex double a1 = amp[j];
+            amp[i] = u[0][0]*a0 + u[0][1]*a1;
+            amp[j] = u[1][0]*a0 + u[1][1]*a1;
+        }
+    }
+}
+\end{lstlisting}
+
+These two primitives --- single-qubit gate and controlled single-qubit gate --- are sufficient to construct every algorithm in this thesis, including the QFT, Grover's algorithm, and Shor's algorithm presented in the next three sections. This is also the approach that QC-lib \cite{pgsq03}, QuEST, Intel-QS / qHiPSTER \cite{smelyanskiy2016}, and Qiskit Aer all converge on, for the same reasons given above.
+
+\subsection{Distributed state vector across MPI nodes}
+
+For $n$ large enough that the state vector exceeds a single node's memory, we distribute it across $P = 2^p$ processes. The process of rank $r$ holds the amplitudes whose global index has the top $p$ bits equal to $r$; equivalently, the top $p$ bits of the global index identify the rank and the bottom $n-p$ bits give the local offset within that rank.
+
+Gates on the low qubits (indices $0$ through $n-p-1$) act entirely within each process --- no communication is required. This is the common case: with $P=16$ on a 30-qubit simulation, $26$ of the $30$ qubits are local to each rank.
+
+Gates on the high qubits (indices $n-p$ through $n-1$) require communication. For a single-qubit gate on qubit $k\geq n-p$:
+\begin{enumerate}
+\item Each process pairs with the process whose rank differs from its own by exactly bit $k-(n-p)$.
+\item Each pair exchanges its amplitude array (in chunks if necessary, to bound the transient memory footprint).
+\item After the exchange, each process holds the amplitudes it needs to apply the local $2\times 2$ multiplication.
+\item Optionally, ``relabel'' the qubits so that the global qubit being operated on becomes local for subsequent gates, allowing several global-qubit gates to be batched into a single permutation-and-exchange step.
+\end{enumerate}
+
+The communication pattern is a pairwise exchange of $\Theta(2^{n-p})$ amplitudes per process per global-qubit gate, with one hop on most cluster topologies (and at most $\log P$ on a hypercube, which the original library targeted). This is the standard distributed state-vector pattern \cite{smelyanskiy2016}.
+
+In the original library's design, the existing \verb|broadcast_matrix| primitive would be replaced with a pairwise \verb|MPI_Sendrecv|:
+
+\begin{lstlisting}[caption={Pairwise amplitude exchange used for gates on global qubits.}]
+void exchange_amplitudes(complex double *amp, size_t local_size,
+                         int partner_rank) {
+    complex double *buf = malloc(local_size * sizeof *buf);
+    MPI_Sendrecv(amp,  local_size, MPI_C_DOUBLE_COMPLEX, partner_rank, 0,
+                 buf,  local_size, MPI_C_DOUBLE_COMPLEX, partner_rank, 0,
+                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    /* amp + buf together now contain the qubit pair this gate couples */
+    free(buf);
+}
+\end{lstlisting}
+
+\subsection{Scaling estimate}
+
+For a circuit of $G$ gates on $n$ qubits distributed across $P$ processes, the resource bounds are:
+\begin{itemize}
+\item Local-gate work per process: $\Theta(G\cdot 2^n / P)$ complex multiplications.
+\item Communication per global-qubit gate: $\Theta(2^n / P)$ complex numbers exchanged with one partner process.
+\item Memory per process: $16 \cdot 2^n / P$ bytes.
+\end{itemize}
+This scales. A modern cluster with $64$ nodes at $256\,\text{GB}$ RAM each holds $n=40$ qubits comfortably, well beyond what the original dense-matrix approach can reach. The dense approach, by contrast, hits a memory wall at roughly $n=20$ \emph{regardless of cluster size}, because the bottleneck is materialising the operator rather than distributing it.
+
+\subsection{Relation to the original library}
+
+\begin{sloppypar}
+The bundled C source under \texttt{implementation/original/} implements the historical dense-matrix strategy: a \texttt{matrix} struct of \texttt{\_\_complex\_\_ double**}, allocated row-major; \texttt{tensor\_product} and \texttt{dot\_product} on dense matrices; and \texttt{send\_matrix} / \texttt{get\_matrix} / \texttt{broadcast\_matrix} for partitioning the program matrix across the LAM/MPI cluster. We have left this source as-is for historical reference; the next chapter documents the API that would replace it under the sparse-gate strategy described above.
+\end{sloppypar}

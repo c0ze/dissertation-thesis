@@ -1,12 +1,10 @@
 \newpage
 
 \rhead{\bfseries \thepage}
-\pagenumbering{roman}
 \vspace*{\fill}
 \begin{center}
 {\bf Abstract}
 \end{center}
 \addcontentsline{toc}{section}{Abstract}
-This thesis gives a brief introduction to {\tt Quantum Computation} and discusses implementation schemas for a {\tt Quantum Computer} simulator on a distributed system.  
-Research into {\tt Quantum Computers} have increased drastically since Peter Shor showed that some problems which can only be solved in exponential time with classical computers can be solved in polynomial time with quantum computers. Other algorithms have also been discovered where {\tt Quantum Computers} have an advantage over their classical counterparts. There are still great difficulties in physical realization of {\tt Quantum Computers}, and so far machines with only a few bits of memory have been accomplished. Because of this, much of the research into {\tt Quantum Computation} algorithms make use of simulators. Due to the fundamental differences between Classical Computers and {\tt Quantum Computers} it is quite inefficient to simulate a {\tt Quantum Computer} with a reasonable memory. This thesis investigates the possible strategies for simulating a {\tt Quantum Computer} on a parallel Linux cluster.
+This thesis gives an introduction to {\tt Quantum Computation} and discusses implementation strategies for a {\tt Quantum Computer} simulator on a distributed system. Research into {\tt Quantum Computers} has expanded rapidly since Peter Shor showed that integer factorisation --- believed to be classically intractable --- admits a polynomial-time quantum algorithm; further quantum algorithms have since been discovered that outperform their classical counterparts on a range of problems. Physical realisation of {\tt Quantum Computers} remains difficult, and machines built to date are limited in size and noisy in operation; as a result, much of the research into {\tt Quantum Computation} algorithms makes use of simulators running on classical hardware. The fundamental difference between classical and quantum computation makes such simulation inherently expensive: the state vector grows exponentially in the number of qubits. This thesis examines the strategies available for simulating a {\tt Quantum Computer} on a parallel {\tt Linux} cluster, identifies the central scaling pitfall of dense-matrix approaches, and presents the in-place sparse-gate strategy that scalable simulators must adopt instead. It then applies that strategy to the three canonical quantum algorithms: the {\tt Quantum Fourier Transform}, Grover's unstructured search, and Shor's integer factorisation.
 \vspace*{\fill}

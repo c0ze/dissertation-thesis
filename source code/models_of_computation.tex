@@ -5,7 +5,7 @@ Classical computers can be modeled by a Turing machine. A \emph{Turing Machine} 
 
 The \emph{Church-Turing Thesis} \cite {tt36} says the following: A Turing machine can compute any function computable by a reasonable physical device. Programming languages can be translated into Turing machines and vice versa. Thus, the computation of any reasonable function can be expressed by a programming language.
 
-The modern Church thesis \cite{ct36} says that a probabilistic Turing machine can simulate any physical device in polynomial cost. A \emph{probabilistic Turing Machine} can select among a set of transition functions with varying probability, instead of just one. In the following example, real numbers preceding a state indicate the probability of transitioning to that state.
+The \emph{extended} (or \emph{strong}) Church--Turing thesis goes further than this and asserts that a probabilistic Turing machine can simulate any physical device with at most polynomial overhead. This is not a statement made by Church or Turing in their 1936 papers; it is a later thesis about the resources required for simulation. A \emph{probabilistic Turing Machine} can select among a set of transition functions with varying probability, instead of just one. In the following example, real numbers preceding a state indicate the probability of transitioning to that state.
 
 \[ \begin{array}{ccccccc}
 \ket{0} & \rightarrow & 0.5\ket{1} & + & 0.5\ket{2} \\

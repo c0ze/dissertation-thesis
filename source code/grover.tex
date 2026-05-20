@@ -1,0 +1,79 @@
+\setcounter{equation}{0}
+\section{Grover's Algorithm}
+\label{sec:grover}
+
+\subsection{The problem}
+
+Given a Boolean function $f:\{0,1\}^n \to \{0,1\}$ implemented as a quantum oracle, find an $x$ with $f(x)=1$. Classically, with no structure assumed on $f$, this requires $\Theta(N)$ oracle queries where $N=2^n$. Grover (1996) \cite{fqma96} showed it takes only $\Theta(\sqrt{N})$ quantum queries --- a quadratic speedup. The speedup is provably optimal for unstructured search.
+
+\subsection{The construction}
+
+The oracle is a \emph{phase oracle}: it applies a $-1$ phase to the marked basis states,
+\begin{equation}
+O_f \ket{x} \;=\; (-1)^{f(x)}\ket{x}.
+\end{equation}
+The bit-oracle of the previous chapter can be converted into a phase oracle using a single ancilla qubit prepared in the state $(\ket{0}-\ket{1})/\sqrt{2}$ via the standard phase-kickback trick.
+
+Initialise the register in the uniform superposition
+\begin{equation}
+\ket{s} \;=\; H^{\otimes n}\ket{0\ldots 0} \;=\; \frac{1}{\sqrt{N}}\sum_{x=0}^{N-1} \ket{x}.
+\end{equation}
+The Grover iteration is the unitary
+\begin{equation}
+G \;=\; \bigl(2\ket{s}\!\bra{s} - I\bigr)\,O_f.
+\end{equation}
+The first factor, $2\ket{s}\!\bra{s} - I$, is the \emph{diffusion operator}: it inverts every amplitude about the mean of all amplitudes. It admits the decomposition
+\begin{equation}
+2\ket{s}\!\bra{s} - I \;=\; H^{\otimes n}\,\bigl(2\ket{0\ldots 0}\!\bra{0\ldots 0} - I\bigr)\,H^{\otimes n},
+\end{equation}
+and $2\ket{0\ldots 0}\!\bra{0\ldots 0} - I$ is a phase flip on the all-zeros component, equivalent up to global sign to a multi-controlled-$Z$ with all controls negated.
+
+\subsection{Geometric picture}
+
+Let $\ket{w}$ be the equal superposition of all marked basis states and $\ket{w^\perp}$ the equal superposition of all unmarked states. The initial state $\ket{s}$ lies in the two-dimensional plane spanned by $\ket{w}$ and $\ket{w^\perp}$. The oracle $O_f$ is a reflection about $\ket{w^\perp}$, and the diffusion is a reflection about $\ket{s}$. Two reflections compose into a rotation, so each Grover iteration rotates $\ket{s}$ by angle $2\theta$ in this plane, where
+\begin{equation}
+\sin\theta \;=\; \sqrt{M/N}
+\end{equation}
+and $M$ is the number of marked items. After $k$ iterations, the probability of measuring a marked state is $\sin^2\bigl((2k+1)\theta\bigr)$, maximised at
+\begin{equation}
+k_\mathrm{opt} \;=\; \left\lfloor \frac{\pi}{4}\sqrt{\frac{N}{M}} \right\rfloor.
+\end{equation}
+Too few iterations and the amplitude has not rotated all the way into the marked subspace; \emph{too many} and it rotates past it. This is one of the few quantum algorithms with a tight optimal stopping point, and stopping at $k_\mathrm{opt}$ gives a success probability close to $1$.
+
+\subsection{Implementation in the simulator}
+
+\begin{lstlisting}[caption={Grover's algorithm: uniform-superposition initialisation followed by $k$ iterations of oracle + diffusion.}]
+typedef void (*oracle_fn)(qreg *q);   /* user-supplied phase oracle */
+
+void apply_grover(qreg *q, int n, oracle_fn oracle, int iterations) {
+    /* uniform superposition */
+    for (int i = 0; i < n; i++) apply_h(q, i);
+
+    for (int iter = 0; iter < iterations; iter++) {
+        oracle(q);
+
+        /* diffusion: H, then phase flip on |0..0>, then H */
+        for (int i = 0; i < n; i++) apply_h(q, i);
+        for (int i = 0; i < n; i++) apply_x(q, i);
+        apply_multi_controlled_z(q, n);    /* phase flip on |1..1> */
+        for (int i = 0; i < n; i++) apply_x(q, i);
+        for (int i = 0; i < n; i++) apply_h(q, i);
+    }
+}
+\end{lstlisting}
+
+The multi-controlled-$Z$ on $n$ qubits is, in a state-vector simulator, essentially free --- one amplitude needs its sign flipped:
+
+\begin{lstlisting}[caption={Multi-controlled-$Z$ implementation in the simulator.}]
+void apply_multi_controlled_z(qreg *q, int n) {
+    size_t target = (1ULL << n) - 1;   /* |1..1> */
+    if (target_is_local(q, target))
+        q->amp[local_index(q, target)] *= -1.0;
+}
+\end{lstlisting}
+
+On physical hardware this gate is not free: it decomposes into $\Theta(n)$ Toffoli gates with $\Theta(n)$ ancillas, which is the actual cost of executing Grover's algorithm on a real machine. The simulator gets to cheat here precisely because it has direct access to the amplitude array.
+
+\subsection{Worked example}
+
+For $N = 2^{20}$ and a single marked item, the optimal number of iterations is $\lfloor \tfrac{\pi}{4}\sqrt{2^{20}}\rfloor = 804$. Classical search would expect on the order of $N/2 \approx 524{,}000$ queries to find it. The simulator runs all $20$ qubits in $\sim 16\,\text{MB}$ of state-vector memory --- well within a single node, no cluster needed. For larger registers, the distributed state-vector strategy of Section~\ref{sec:parallel} extends Grover simulation up to the cluster's aggregate memory ceiling.

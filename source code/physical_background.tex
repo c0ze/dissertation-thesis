@@ -1,30 +1,74 @@
 \setcounter{equation}{0}
 \section{Physical Background}
 
-Quantum mechanics is a branch of physics which models behavior of energy and matter at the atomic and subatomic level. Its name comes from \emph {quanta} \footnote{ the discrete packets of energy proposed by Max Planck in 1900}.
+Quantum mechanics is a branch of physics which models the behavior of energy and matter at atomic and subatomic scales. Its name comes from \emph{quanta}\footnote{the discrete packets of energy proposed by Max Planck in 1900}.
 
-Quantum mechanics asserts the following theories: 
+Rather than enumerate informal ``theories'' of quantum mechanics, the cleanest way to present the subject is through its four postulates. Every result we use in this thesis --- superposition, entanglement, the reversibility of computation, measurement statistics --- is a consequence of these four statements and not an additional independent principle.
 
-(1) energy and matter exist in discrete particles, 
+\subsection{The four postulates}
 
-(2) energy and matter may behave as either particles or waves., 
+\paragraph{Postulate 1 (State space).} The state of an isolated quantum system is a unit vector in a complex Hilbert space $\mathcal{H}$. For a single qubit, $\mathcal{H} = \mathbb{C}^2$, and the state is
+\begin{equation}
+\ket{\psi} = \alpha\ket{0} + \beta\ket{1}, \qquad |\alpha|^2 + |\beta|^2 = 1.
+\end{equation}
+Two states that differ only by a global phase $e^{i\theta}$ are physically indistinguishable.
 
-(3) movement of these particles is unpredictable, and 
+\paragraph{Postulate 2 (Evolution).} The evolution of a closed quantum system is unitary. A discrete time step is described by a unitary operator $U$ acting on the state:
+\begin{equation}
+\ket{\psi'} = U\ket{\psi}.
+\end{equation}
+Continuous evolution is governed by the Schr\"{o}dinger equation $i\hbar\,\partial_t\ket{\psi} = H\ket{\psi}$, whose finite-time solution is $U = e^{-iHt/\hbar}$. For computation we usually work with $U$ directly and treat the underlying Hamiltonian $H$ as an implementation detail of the physical hardware.
 
-(4) simultaneous measurement of two complementary values of a particle cannot be achieved.
+\paragraph{Postulate 3 (Measurement).} A measurement in the computational basis returns outcome $x$ with probability $|\braket{x}{\psi}|^2$ and projects the state onto $\ket{x}$. More generally, a measurement is described by a collection of operators $\{M_m\}$ satisfying $\sum_m M_m^\dagger M_m = I$; outcome $m$ occurs with probability $\bra{\psi} M_m^\dagger M_m \ket{\psi}$, and after observing $m$ the state collapses to $M_m \ket{\psi}/\sqrt{\bra{\psi} M_m^\dagger M_m \ket{\psi}}$.
 
-Examples of such properties are energy, position, momentum, and angular momentum.
+\paragraph{Postulate 4 (Composite systems).} The state space of a composite system is the tensor product of the component state spaces. For two qubits,
+\begin{equation}
+\mathcal{H} = \mathbb{C}^2 \otimes \mathbb{C}^2 = \mathbb{C}^4.
+\end{equation}
 
-Last theory is called \emph{Heisenberg's uncertainty principle}. The principle states that before measurement of a quantum particle's state, it exists in all states simultaneously. This property is called \emph{superposition}.
+\subsection{Superposition is linearity}
 
-Another important property is called \emph{entanglement} or \emph{coherence}. Pairs of particles which interact become entangled, a process called \emph{correlation}. These particles exist in complementary states, so if one entangled particle has an "up" spin, its partner has a "down" spin. 
-Together, entanglement and superposition enable quantum computation.
+Superposition is the statement that if $\ket{\psi_1}$ and $\ket{\psi_2}$ are valid states, then so is any normalised linear combination $\alpha\ket{\psi_1} + \beta\ket{\psi_2}$. It is a direct consequence of Postulate 1: state space is a vector space.
 
-Superposition tells us that we cannot know a particle's state until it is measured. Before measurement, we can express a particle's state as a probability amplitude (defined in the next section). 
+This has nothing to do with the Heisenberg uncertainty principle. The uncertainty principle is a statement about \emph{observables}: for any two observables $A$ and $B$,
+\begin{equation}
+\Delta A \cdot \Delta B \;\geq\; \tfrac{1}{2}\,\bigl|\bra{\psi}[A,B]\ket{\psi}\bigr|.
+\end{equation}
+When $A$ and $B$ do not commute, no quantum state can simultaneously have sharp values for both. Position and momentum are the canonical example. Superposition, in contrast, exists in finite-dimensional Hilbert spaces with no position observable at all (a single qubit being the simplest example). The two ideas live on different shelves and should not be conflated.
 
-The process of losing coherence is called \emph{decoherence}, and can occur as a result of even a single stray photon. Decoherence is thought to explain why much of our world behaves according to classical, and not quantum, physics. Remaining coherent requires
-complete isolation of a pair from the environment, and presents one of the greatest challenges to scientists. This is why quantum computation must be reversible at every stage: thermodynamics shows that a non-reversible computation must give off heat as a byproduct, which causes interaction with
-the environment, which leads to decoherence. Extensive error correcting codes are used to get around the decoherence problem in practice, but with extreme time and space overhead.
+\subsection{Entanglement and coherence are distinct}
 
-In order to explain quantum algorithms, and how they achieve the efficiency gains they are capable of, it is first necessary to understand how quantum computers work internally. The concern here is not with how quantum computers can be implemented physically, though this is an active area of research in physics. What is necessary is an understanding of how qubits work, and how they interact.
+A two-qubit state is \emph{entangled} if and only if it cannot be written as a tensor product $\ket{\phi}\otimes\ket{\chi}$ of single-qubit states. The four canonical Bell states are all maximally entangled:
+\begin{equation}
+\ket{\Phi^\pm} = \tfrac{1}{\sqrt{2}}\bigl(\ket{00} \pm \ket{11}\bigr), \qquad
+\ket{\Psi^\pm} = \tfrac{1}{\sqrt{2}}\bigl(\ket{01} \pm \ket{10}\bigr).
+\end{equation}
+Measuring the first qubit of $\ket{\Phi^+}$ yields outcomes that \emph{match} the second qubit's; measuring the first qubit of $\ket{\Psi^-}$ yields outcomes that anti-match. Entanglement is non-classical correlation in general --- not specifically anti-correlation, and not specifically the spin-singlet case.
 
+\emph{Coherence} is a different concept entirely. A state is coherent (with respect to a chosen basis) when its density matrix has non-zero off-diagonal elements in that basis. For a single qubit in the state $\ket{+} = (\ket{0}+\ket{1})/\sqrt{2}$, the density matrix
+\begin{equation}
+\rho_+ = \tfrac{1}{2}\begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}
+\end{equation}
+is coherent in the $\{\ket{0},\ket{1}\}$ basis --- the off-diagonal elements record the relative phase between $\ket{0}$ and $\ket{1}$. After decoherence in that basis, the diagonal survives but the off-diagonals vanish:
+\begin{equation}
+\rho_{\text{dec}} = \tfrac{1}{2}\begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}.
+\end{equation}
+A single-qubit superposition is coherent but trivially unentangled; one can also have entanglement on noisy mixed states with reduced coherence. They are separate resources. Decoherence --- caused by uncontrolled interaction with the environment, sometimes by even a single stray photon --- is the process that destroys both.
+
+\subsection{Why computation must be reversible}
+
+Landauer (1961) \cite{landauer1961} showed that erasing one bit of information in a system at temperature $T$ dissipates at least $k_B T \ln 2$ joules of heat. Bennett (1973) \cite{bennett1973} showed that any classical computation can be made logically reversible by retaining intermediate results, so heat dissipation is not fundamentally required for computation.
+
+Quantum computation is reversible by construction: Postulate 2 says that closed-system evolution is unitary, and unitary maps are invertible ($U^{-1} = U^\dagger$). The deeper reason this matters, beyond thermodynamic prudence, is that non-unitary evolution is what decoherence \emph{looks like} from the outside. A computation that ``leaks'' information into the environment is, by definition, a computation entangled with environmental degrees of freedom that we cannot track, and tracing them out collapses our superposition. Reversibility is therefore the property a quantum computer must preserve to keep its computational state coherent.
+
+In practice, achieving reversibility requires extensive isolation of the qubit register, and active mitigation through quantum error-correcting codes, which encode each logical qubit redundantly across many physical qubits.
+
+\subsection{The no-cloning theorem}
+
+One result deserves explicit mention because it shapes both quantum algorithms and quantum error correction: there is no unitary $U$ such that
+\begin{equation}
+U\ket{\psi}\ket{0} = \ket{\psi}\ket{\psi}
+\end{equation}
+for arbitrary $\ket{\psi}$. The proof is one line: assume such a $U$ exists, apply it to two non-orthogonal states $\ket{\psi}$ and $\ket{\phi}$, take inner products on both sides of the resulting identity, and conclude $\braket{\psi}{\phi} = \braket{\psi}{\phi}^2$, which forces $\braket{\psi}{\phi} \in \{0,1\}$ --- a contradiction \cite{wootterszurek1982}. This is why quantum error correction cannot simply ``copy and check'' to recover from errors; it must protect the state without ever reading it directly.
+
+In order to explain quantum algorithms and the efficiency gains they achieve, we now need to understand how the abstract qubit register works internally, and how it is described mathematically.

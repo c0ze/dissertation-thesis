@@ -1,71 +1,122 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\documentclass[12pt]{article}                           %volki
-% packages to be used                                   %volki
-\usepackage[a4paper,dvips]{geometry}               %?????
-\usepackage{graphicx}                           %?????
-\usepackage{latexsym}                           %?????
-\usepackage{array}                              %?????
-\usepackage{tabularx}                                   %volki
-\usepackage{lscape}                                     %volki
-\usepackage{a4,amsmath,amssymb}                         %volki
-\usepackage{rotating}                           %?????
-\usepackage{fancyhdr}                           %?????
-\usepackage{setspace}                                   %volki 
-\usepackage{txfonts}                                    %volki
-\usepackage{plain}                                      %volki
-\usepackage[latin5]{inputenc}
-%spacing                                                %volki
-\onehalfspacing                                         %volki
-\def\ma#1{{\tt #1}}                             %?????
-\def\tv#1{{\scriptstyle(#1)}}                   %?????
+%
+% qucomp.tex --- main file of the dissertation
+%
+% Originally written 2004 (Bilgi University, supervisor Bulent Ozel).
+% Modernised 2026 for current TeX Live / pdflatex; chapters revised
+% per the corrigendum that accompanies this revision.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[12pt,letterpaper]{article}
 
-\def\bra#1{\mathinner{\langle{#1}|}}		%dirac notation - arda
+% --- core packages ---------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage{cmap}                       % proper Unicode mappings in PDF
+                                        % (must be loaded before fontenc)
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}                    % Latin Modern (Type 1, ligatures
+                                        % extract as real text)
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{latexsym}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{lscape}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{rotating}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+% --- spacing ---------------------------------------------------------------
+\onehalfspacing
+\setlength{\emergencystretch}{3em}      % gives TeX extra slack on paragraphs
+                                        % containing long unbreakable \texttt
+                                        % tokens like file paths
+\hbadness=2000                           % suppress tiny underfull warnings
+                                        % (overfull boxes still warned)
+
+% --- shorthands ------------------------------------------------------------
+\def\ma#1{{\tt #1}}
+\def\tv#1{{\scriptstyle(#1)}}
+
+% Dirac notation
+\def\bra#1{\mathinner{\langle{#1}|}}
 \def\ket#1{\mathinner{|{#1}\rangle}}
 \newcommand{\braket}[2]{\langle #1|#2\rangle}
 \def\Bra#1{\left<#1\right|}
 \def\Ket#1{\left|#1\right>}
 
+% Title
+\newcommand{\disstitle}{Quantum Computation:\\Implementation of Quantum Gates on Linux Clusters}
 
-% PAGE MARGIN HOTOROFU
-%\geometry{left=3.5cm,right=2cm,top=3.5cm,bottom=2cm}
-\textheight 21.5cm
-\textwidth 16.5cm
-\voffset 1.5cm
-\hoffset 0.0cm
+% --- page style ------------------------------------------------------------
+\setlength{\headheight}{14.5pt}         % silence fancyhdr warning
+\pagestyle{fancy}
+\newenvironment{itemizeeng}{\begin{itemize}\itemsep-0.8ex minus0.1ex}{\end{itemize}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection.\ #1}}
+\lhead{}\chead{}\rhead{}
+\lfoot{}\cfoot{}\rfoot{}
+\renewcommand{\headrulewidth}{0.0pt}
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
 
-\newcommand{\disstitle}{Quantum Computation : Implementation of Quantum Gates on Linux Clusters}
+% --- bibliography ----------------------------------------------------------
+\bibliographystyle{plain}
 
-% fancy header and footer formatting            %?????
-\pagestyle{fancy}                               %?????
-\newenvironment{itemizeeng}{\begin{itemize}\itemsep-0.8ex
-minus0.1ex}{\end{itemize}}
-% change sectionmark
-\renewcommand{\sectionmark}[1]                  %?????
-{                                               %?????
-  \markright{\thesection.\ #1}                  %?????
-}                                               %?????
-\lhead{}
-\chead{}
-\rhead{}
-\lfoot{}
-\cfoot{}
-\rfoot{}
-% set the width of the head rule                %?????
-\renewcommand{\headrulewidth}{0.0pt}            %?????
-% footnote style                                %?????
-\renewcommand{\thefootnote}{\fnsymbol{footnote}}%?????
-% set bibliography style                                 %volki
-\bibliographystyle{plain}                                %volki
-% for math                                      %?????
-\newtheorem{definition}{Definition}             %?????
-\makeindex                                      %?????
+% --- math ------------------------------------------------------------------
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+
+% Number equations per-section so hyperref destination IDs stay unique
+% (otherwise every section's \setcounter{equation}{0} creates "equation.1"
+%  collisions in the PDF).
+\numberwithin{equation}{section}
+\renewcommand{\theHequation}{\thesection.\arabic{equation}}
+
+% --- listings (for C code samples in revised chapters) ---------------------
+\lstdefinestyle{cstyle}{
+    language=C,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue!70!black}\bfseries,
+    commentstyle=\color{green!40!black},
+    stringstyle=\color{red!70!black},
+    showstringspaces=false,
+    breaklines=true,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    frame=single,
+    framerule=0.4pt,
+    rulecolor=\color{gray!30},
+    xleftmargin=2em,
+    tabsize=4,
+    captionpos=b
+}
+\lstset{style=cstyle}
+
+% --- hyperref colours ------------------------------------------------------
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!50!black,
+    citecolor=blue!50!black,
+    urlcolor=blue!60!black,
+    plainpages=false,                    % use formatted page label, not raw int
+    hypertexnames=false,                 % auto-generate unique anchor names
+                                         % (prevents page.1 collisions when
+                                         %  \pagenumbering is reset)
+    pdftitle={Quantum Computation: Implementation of Quantum Gates on Linux Clusters},
+    pdfauthor={Arda Karaduman}
+}
+
+\makeindex
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 
 \begin{document}
 \include{titlepage}
-\include{acknowledgement}
+\pagenumbering{roman}
 \doublespacing
+\include{foreword}
 \include{abstract}
 \newpage
 
@@ -83,16 +134,17 @@ minus0.1ex}{\end{itemize}}
 \include{models_of_computation}
 \include{physical_background}
 \include{mathematical_basics}
-\include{quantum_computation} %quantum gates%
+\include{quantum_computation}
 \include{simulation}
 \include{parallel_simulation}
+\include{qft}
+\include{grover}
+\include{shor}
 \include{ref_guide}
 \include{conclusion}
 
 \newpage
-\bibliography{qucomp}
 \addcontentsline{toc}{section}{References}
+\bibliography{qucomp}
 
 \end{document}
-
-
