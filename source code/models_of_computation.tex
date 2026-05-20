@@ -1,0 +1,17 @@
+\setcounter{equation}{0}
+\section{ Models of Computation}
+
+Classical computers can be modeled by a Turing machine. A \emph{Turing Machine} is an abstract model of computation comprised of an infinitely long sequential tape, a read/write head, a set of symbols, and a set of rules for reading / writing and moving the head based on the symbol under it. These rules are called \emph{functions}, and the symbol under the head is called the \emph{state}. The machine moves from one state to another by executing a matching transition function. If no transition function matches, the machine halts.
+
+The \emph{Church-Turing Thesis} \cite {tt36} says the following: A Turing machine can compute any function computable by a reasonable physical device. Programming languages can be translated into Turing machines and vice versa. Thus, the computation of any reasonable function can be expressed by a programming language.
+
+The modern Church thesis \cite{ct36} says that a probabilistic Turing machine can simulate any physical device in polynomial cost. A \emph{probabilistic Turing Machine} can select among a set of transition functions with varying probability, instead of just one. In the following example, real numbers preceding a state indicate the probability of transitioning to that state.
+
+\[ \begin{array}{ccccccc}
+\ket{0} & \rightarrow & 0.5\ket{1} & + & 0.5\ket{2} \\
+\ket{1} & \rightarrow & 0.2\ket{0} & + & 0.8\ket{1} \\
+\ket{2} & \rightarrow & 0.4\ket{0} & + & 0.3\ket{2} & + & 0.3\ket{3} \\
+\ket{3} & \rightarrow & 0.3\ket{0} & + & 0.7\ket{2} \end{array}\] 
+
+Such machines can produce solutions with a negligible probability of error, which would be non computable if no error was tolerated. Probabilistic computation with negligible error is important for quantum computation.
+

@@ -1,0 +1,46 @@
+\setcounter{equation}{0}
+\section{Mathematical Basics}
+
+Qubits are conventionally represented as Ket vectors in the \emph{Dirac (Bra-Ket) notation}, which is common in quantum physics texts. The notation defines the Ket column vector, and its row vector transpose the Bra. The Ket vector $\vec{x}$ is denoted by $\ket{\phi}$ = \( \left( \begin{array}{ccc} x_1 \\ x_2 \end{array}\right)\) , and Bra vector $\vec{y}$ is denoted $\bra{\psi}$ = \( \left( \begin{array}{ccc} y_1 & y_2 \end{array}\right)\). In quantum computation, the expression $\ket{0}$ represents quantum zero, and $\ket{1}$ represents quantum one. The state of a qubit can then be represented by the expression $\alpha\ket{0}$+$\beta\ket{1}$, where $\alpha$ and $\beta$ are the amplitudes of zero and one, respectively. The probability of seeing $\ket{0}$ in this state is $\left|\alpha\right|^2$, and $\ket{1}$ is $\left|\beta\right|^2$. As long as our system is coherent, the sum of these probabilities must be 1. So, in this example, $\left|\alpha\right|^2$ + $\left|\beta\right|^2$ = 1. Similarly, an n-qubit register will have $2^n$ amplitudes, each determining the probability that the binary number corresponding to it during measurement, and the sum of their squares will be 1.
+
+There is also an alternative, matrix notation for the quantum computation. The group of amplitudes that describe the state of a quantum register is always a unit vector. According to convention, a qubit with state $\ket{0}$, which is guaranteed to read 0 when measured, is represented by the vector 
+
+\begin{center}
+\( \left( \begin{array}{ccc} 1 \\ 0 \end{array}\right)\), 
+\end{center}
+a qubit with state $\ket{1}$ is represented by the vector 
+
+\begin{center}
+\( \left( \begin{array}{ccc} 0 \\ 1 \end{array}\right)\) 
+\end{center}
+(these are called the basis states). So the amplitude of seeing $\ket{0}$ is given in the first row, and seeing $\ket{1}$ is given in the second row. An arbitrary qubit state is then represented by the vector 
+
+\begin{center}
+\( \left( \begin{array}{ccc} \alpha \\ \beta \end{array}\right)\), 
+\end{center}
+where $\alpha$ and $\beta$ are complex numbers and 
+
+\begin{center}
+$\left|\alpha\right|^2$ + $\left|\beta\right|^2$ = 1.
+\end{center}
+The state of a register consisting of n qubits is represented by the tensor product of the individual states of the qubits in it.
+
+For two matrices \emph{A} and \emph{B}, where \emph{A} is \emph{n} by \emph{m}, \emph{A}$\bigotimes$\emph{B} equals :
+
+\( \left( \begin{array}{ccc} a_{11} & ... & a_{1m} \\ ... & ... & ... \\ a_{n1} & ... & a_{nm} \end{array}\right)\)$\bigotimes$=\( \left( \begin{array}{ccc} a_{11}B & ... & a_{1m}B \\ ... & ... & ... \\ a_{n1}B & ... & a_{nm}B \end{array}\right)\)
+
+So, the tensor product of two vectors $\vec{a}$ and $\vec{b}$ equals :
+
+\begin{center}
+\( \left( \begin{array}{ccc} a_1 \\ ... \\ a_n \end{array}\right)\)$\bigotimes$\( \left( \begin{array}{ccc} b_1 \\ ... \\ b_m \end{array}\right)\)=\( \left( \begin{array}{ccc} a_1b_1 \\ ... \\ a_1b_m \\ a_2b_1 \\ ... \\ a_2b_m \\ ... \\ ... \\ a_nb_1 \\ ... \\ a_nb_m \end{array}\right)\)
+\end{center}
+So a register with two qubits where the bits are \( \left( \begin{array}{ccc} a_1 \\  a_2 \end{array}\right)\) and \( \left( \begin{array}{ccc} b_1 \\  b_2 \end{array}\right)\), respectively can be represented as 
+
+
+\( \left( \begin{array}{ccc} a_1b_1 \\  a_2b_1 \\ a_1b_2 \\  a_2b_2\end{array}\right)\) where, of course
+
+\begin{center}
+$\left|a_1b_1\right|^2$ + $\left|a_1b_2\right|^2$ + $\left|a_2b_1\right|^2$ + $\left|a_2b_2\right|^2$= 1.
+\end{center}
+A quantum program which transforms a register of $n$ qubits from an input state to an output state can be represented as $2^n$ by $2^n$ matrix, which, when multiplied by the input state vector, gives the output state vector. Because Quantum Computation should be information lossless (ie reversible), this matrix should be a unitary matrix.
+The combined effect of several single-qubit programs which run parallelly on the qubits in a register can be represented as the tensor product of their individual matrices.

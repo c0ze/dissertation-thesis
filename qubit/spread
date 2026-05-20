@@ -1,0 +1,21 @@
+#spreads a file to all hosts specified in the lamhosts file
+#ignores localhost (which must be the first host in lamhosts file)
+#17/04/2004		Arda 'CoZe' Karaduman
+
+if [ $# = "1" ]; then
+let "b = 1"
+for a in `cat lamhosts` ; do 
+if [ "$b" = "1" ]; then
+sc_hostname=$a
+elif [ ! "$sc_hostname" = "$a" ]; then
+#echo $a
+scp $1 $a:/home/borg
+fi
+let "b = $b + 1"
+done; 
+else
+echo "usage : $0 file"
+echo "this script spreads the given file to all hosts in the lamhosts file"
+echo "lamhosts file must be in the same directory with this script"
+echo "you should be able to run lam-mpi over ssh"
+fi

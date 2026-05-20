@@ -1,0 +1,98 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[12pt]{article}                           %volki
+% packages to be used                                   %volki
+\usepackage[a4paper,dvips]{geometry}               %?????
+\usepackage{graphicx}                           %?????
+\usepackage{latexsym}                           %?????
+\usepackage{array}                              %?????
+\usepackage{tabularx}                                   %volki
+\usepackage{lscape}                                     %volki
+\usepackage{a4,amsmath,amssymb}                         %volki
+\usepackage{rotating}                           %?????
+\usepackage{fancyhdr}                           %?????
+\usepackage{setspace}                                   %volki 
+\usepackage{txfonts}                                    %volki
+\usepackage{plain}                                      %volki
+\usepackage[latin5]{inputenc}
+%spacing                                                %volki
+\onehalfspacing                                         %volki
+\def\ma#1{{\tt #1}}                             %?????
+\def\tv#1{{\scriptstyle(#1)}}                   %?????
+
+\def\bra#1{\mathinner{\langle{#1}|}}		%dirac notation - arda
+\def\ket#1{\mathinner{|{#1}\rangle}}
+\newcommand{\braket}[2]{\langle #1|#2\rangle}
+\def\Bra#1{\left<#1\right|}
+\def\Ket#1{\left|#1\right>}
+
+
+% PAGE MARGIN HOTOROFU
+%\geometry{left=3.5cm,right=2cm,top=3.5cm,bottom=2cm}
+\textheight 21.5cm
+\textwidth 16.5cm
+\voffset 1.5cm
+\hoffset 0.0cm
+
+\newcommand{\disstitle}{Quantum Computation : Implementation of Quantum Gates on Linux Clusters}
+
+% fancy header and footer formatting            %?????
+\pagestyle{fancy}                               %?????
+\newenvironment{itemizeeng}{\begin{itemize}\itemsep-0.8ex
+minus0.1ex}{\end{itemize}}
+% change sectionmark
+\renewcommand{\sectionmark}[1]                  %?????
+{                                               %?????
+  \markright{\thesection.\ #1}                  %?????
+}                                               %?????
+\lhead{}
+\chead{}
+\rhead{}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+% set the width of the head rule                %?????
+\renewcommand{\headrulewidth}{0.0pt}            %?????
+% footnote style                                %?????
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}%?????
+% set bibliography style                                 %volki
+\bibliographystyle{plain}                                %volki
+% for math                                      %?????
+\newtheorem{definition}{Definition}             %?????
+\makeindex                                      %?????
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{document}
+\include{titlepage}
+\include{acknowledgement}
+\doublespacing
+\include{abstract}
+\newpage
+
+\addcontentsline{toc}{section}{Table of Contents}
+\tableofcontents
+
+\newpage
+\addcontentsline{toc}{section}{List of Figures}
+\listoffigures
+
+\newpage
+\pagenumbering{arabic}
+\include{introduction}
+\include{history}
+\include{models_of_computation}
+\include{physical_background}
+\include{mathematical_basics}
+\include{quantum_computation} %quantum gates%
+\include{simulation}
+\include{parallel_simulation}
+\include{ref_guide}
+\include{conclusion}
+
+\newpage
+\bibliography{qucomp}
+\addcontentsline{toc}{section}{References}
+
+\end{document}
+
+

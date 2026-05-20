@@ -1,0 +1,26 @@
+# Mac
+.DS_Store
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.log
+*.toc
+*.out
+*.lof
+*.lot
+*.idx
+*.ilg
+*.ind
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.dvi
+
+# Editor backup files
+*.bak
+*~
+
+# Build output dir (created by build.sh)
+source\ code/build/

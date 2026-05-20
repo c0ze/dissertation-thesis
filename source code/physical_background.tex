@@ -1,0 +1,30 @@
+\setcounter{equation}{0}
+\section{Physical Background}
+
+Quantum mechanics is a branch of physics which models behavior of energy and matter at the atomic and subatomic level. Its name comes from \emph {quanta} \footnote{ the discrete packets of energy proposed by Max Planck in 1900}.
+
+Quantum mechanics asserts the following theories: 
+
+(1) energy and matter exist in discrete particles, 
+
+(2) energy and matter may behave as either particles or waves., 
+
+(3) movement of these particles is unpredictable, and 
+
+(4) simultaneous measurement of two complementary values of a particle cannot be achieved.
+
+Examples of such properties are energy, position, momentum, and angular momentum.
+
+Last theory is called \emph{Heisenberg's uncertainty principle}. The principle states that before measurement of a quantum particle's state, it exists in all states simultaneously. This property is called \emph{superposition}.
+
+Another important property is called \emph{entanglement} or \emph{coherence}. Pairs of particles which interact become entangled, a process called \emph{correlation}. These particles exist in complementary states, so if one entangled particle has an "up" spin, its partner has a "down" spin. 
+Together, entanglement and superposition enable quantum computation.
+
+Superposition tells us that we cannot know a particle's state until it is measured. Before measurement, we can express a particle's state as a probability amplitude (defined in the next section). 
+
+The process of losing coherence is called \emph{decoherence}, and can occur as a result of even a single stray photon. Decoherence is thought to explain why much of our world behaves according to classical, and not quantum, physics. Remaining coherent requires
+complete isolation of a pair from the environment, and presents one of the greatest challenges to scientists. This is why quantum computation must be reversible at every stage: thermodynamics shows that a non-reversible computation must give off heat as a byproduct, which causes interaction with
+the environment, which leads to decoherence. Extensive error correcting codes are used to get around the decoherence problem in practice, but with extreme time and space overhead.
+
+In order to explain quantum algorithms, and how they achieve the efficiency gains they are capable of, it is first necessary to understand how quantum computers work internally. The concern here is not with how quantum computers can be implemented physically, though this is an active area of research in physics. What is necessary is an understanding of how qubits work, and how they interact.
+

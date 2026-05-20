@@ -1,0 +1,122 @@
+Qubit Sim Documentation
+
+Available Functions
+
+Structure of a Matrix :
+
+A matrix struct contains column and row sizes and a pointer to an array of arrays of complex data structs
+
+How to create a matrix :
+
+with the create matrix function. column size and row size are passed as arguments.
+ex :
+matrix * m = create_matrix (2,2);
+
+How to initialise a matrix :
+
+A freshly created matrix's elements are not initialised. the init matrix function zeroes all elements of a matrix.
+ex :
+init_matrix(m);
+
+or you can set the elements to a fixed value with the init_matrix_c (init matrix to complex value) function.
+__complex__ double a = 4 + 3i;
+init_matrix_c(m,a);
+
+init_matrix_n function sets the real parts of the elements to the given value.
+init_matrix_n(m,3.17);
+
+or you can set the matrix to a predefined matrix, currently, hadamard gate (for a 2 by 2 matrix) and CNOT gate (for a 4 by 4 matrix) are available
+init_hadamard(m);
+init_CNOT(m);
+
+how to set matrix values by hand :
+
+you can reach the elements in a matrix with the 'value' pointer in the matrix. You have to provide row and column numbers.
+matrix * m2 = create_matrix(4,1);
+m2->value[0][0]=1;
+m2->value[1][0]=2;
+m2->value[2][0]=3;
+m2->value[3][0]=4;
+
+this matrix is a vector containing :
+1
+2
+3
+4
+
+how to print a matrix :
+
+simply, with the print_matrix function.
+print_matrix (m2);
+
+How to create a quantum register :
+
+a quantum register with n qubits is a vector with 2overn dimensions. When creating a quantum register with
+create_qubit function, you provide the size of the register with the first parameter, and then provide the value (an integer value) which the register will hold as its initial value.
+ex :
+m = create_qubit (2,3);
+will create a 1x4 matrix with
+0
+0
+0
+1
+
+as it's initial value. 3 is represented as 11 in binary, so both qubits should keep 1.
+m = create_qubit (2,0);
+will create
+1
+0
+0
+0
+
+providing a larger value than the register can hold will result in an error.
+
+Deconstructor
+
+~matrix() function will destroy a matrix, freeing all the memory allocated.
+
+Matrix Operations
+
+tensor product :
+returns a pointer to a matrix which is the tensor product of two given matrices.
+The original matrices are kept untouched.
+Ex:
+matrix * m3 ;
+m3 = tensor_product(m1,m2);
+
+dot_product :
+returns a pointer to a matrix which is the dot product of two given matrices.
+The original matrices are kept untouched.
+Ex:
+matrix * m3 ;
+m3 = dot_product(m1,m2);
+
+Matrix Transmission functions :
+There are three functions for easy transmission of matrices within the lam-mpi environment.
+Sending a matrix :
+send_matrix sends a matrix to a specified node.
+Ex:
+send_matrix(m2,2);
+
+Receiving a matrix :
+get_matrix gets a matrix from the specified function.
+Ex:
+matrix * m = get_matrix(0);
+
+Broadcasting a matrix :
+broadcasts a matrix. The first argument is a pointer to the matrix to be sent (this can be (should be) a null pointer
+for the nodes who will receive the matrix, and a pointer to an actual matrix for the node who will send the matrix) the second
+argument is the rank of the node, and the last argument is the rank of the node who will make the broadcast.
+Ex:
+matrix * m2;
+if(rank == 0)
+{
+	m2 = create_matrix (4,4);
+	__complex__ double a = 4 + 3i;
+	init_matrix_c(m2,a);
+}
+m2 = broadcast_matrix(m2,rank,0);
+printf("rank %d received matrix :\n",rank);
+print_matrix(m2);
+
+
