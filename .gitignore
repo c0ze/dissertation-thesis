@@ -22,5 +22,6 @@
 *.bak
 *~
 
-# Build output dir (created by build.sh)
+# Build output dirs
 source\ code/build/
+implementation/*/build/
