@@ -417,7 +417,7 @@ exhausted.
 ### 7.1 Framework
 
 Unity vendored at `tests/unity/`. Adds three files (`unity.h`,
-`unity_internals.h`, `unity.c`). Public domain.
+`unity_internals.h`, `unity.c`). MIT licensed.
 
 **One binary per test_<module>.c file.** Each module's tests link into
 their own standalone executable under `build/tests/test_<module>`. This

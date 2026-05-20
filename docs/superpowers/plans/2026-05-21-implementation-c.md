@@ -153,7 +153,7 @@ Run: `rm -f /tmp/unity.o`
 git add implementation/c/tests/unity
 git commit -m "test(c): vendor Unity v2.6.0 (3 files)
 
-Public-domain test framework, dropped in tree to avoid an external
+MIT-licensed test framework, dropped in tree to avoid an external
 dependency. Will be wrapped by tests/test_runner.h with an MPI-aware
 main() per spec §7.2.
 
