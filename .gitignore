@@ -25,3 +25,14 @@
 # Build output dirs
 source\ code/build/
 implementation/*/build/
+
+# Private research/source archive
+thesis-Docs/
+
+# Unused thesis source artifacts
+source code/20000815_chuang_vial.bmp
+source code/20000815_chuang_vial.eps
+source code/20000815_chuang_vial.gif
+source code/20000815_chuang_vial.jpg
+source code/*.ppt
+source code/qucomp.pdf
