@@ -71,4 +71,9 @@ void apply_multi_controlled_x(qreg *q, const int *controls, int n_controls,
 
 int measure_qubit(qreg *q, int target);
 
+size_t measure_all        (qreg *q);
+void   sample_distribution(const qreg *q, size_t *out, int shots);
+qreg  *qreg_clone         (const qreg *q);
+void   qreg_dump          (const qreg *q, FILE *f);   /* rank 0 prints global state */
+
 #endif /* MATRIX_H */

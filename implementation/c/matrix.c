@@ -397,3 +397,93 @@ int measure_qubit(qreg *q, int target) {
     }
     return outcome;
 }
+
+size_t measure_all(qreg *q) {
+    QREG_ASSERT(q != NULL, "measure_all: q is NULL");
+    /* Build cumulative probability ranges per rank. Each rank computes
+     * its local total |a_i|^2, then we do an MPI_Exscan to get the
+     * running offset, then rank 0 samples u in [0,1) and broadcasts.
+     * Each rank checks whether u falls in its range; the owning rank
+     * picks the basis state with index found via linear scan.            */
+    double local_total = 0.0;
+    for (size_t i = 0; i < q->local_size; i++) {
+        double r = creal(q->amp[i]), im = cimag(q->amp[i]);
+        local_total += r*r + im*im;
+    }
+    double prefix = 0.0;
+    MPI_Exscan(&local_total, &prefix, 1, MPI_DOUBLE, MPI_SUM, q->comm);
+    if (q->rank == 0) prefix = 0.0;
+    double u = 0.0;
+    if (q->rank == 0) u = (double)rand() / (double)RAND_MAX;
+    MPI_Bcast(&u, 1, MPI_DOUBLE, 0, q->comm);
+
+    size_t chosen_global = 0;
+    int    chosen_rank   = -1;
+    if (u >= prefix && u < prefix + local_total) {
+        double cum = prefix;
+        for (size_t i = 0; i < q->local_size; i++) {
+            double r = creal(q->amp[i]), im = cimag(q->amp[i]);
+            cum += r*r + im*im;
+            if (cum >= u) {
+                chosen_global = (size_t)q->rank * q->local_size + i;
+                chosen_rank = q->rank;
+                break;
+            }
+        }
+    }
+    /* Allreduce to find the chosen rank/global index. */
+    int picks_in = (chosen_rank == q->rank) ? q->rank : -1;
+    int max_rank = -1;
+    MPI_Allreduce(&picks_in, &max_rank, 1, MPI_INT, MPI_MAX, q->comm);
+    size_t global_out = chosen_global;
+    MPI_Bcast(&global_out, 1, MPI_UNSIGNED_LONG, max_rank, q->comm);
+    /* Collapse the state: every amplitude except global_out is zeroed. */
+    for (size_t i = 0; i < q->local_size; i++) q->amp[i] = 0.0;
+    if (rank_owns(q, global_out)) {
+        q->amp[global_to_local(q, global_out)] = 1.0;
+    }
+    return global_out;
+}
+
+void sample_distribution(const qreg *q, size_t *out, int shots) {
+    QREG_ASSERT(q != NULL && out != NULL, "sample_distribution: NULL arg");
+    QREG_ASSERT(shots > 0,                 "sample_distribution: shots <= 0");
+    /* Naive: clone state, measure_all, restore. Inefficient but correct.
+     * V1 is single-shot quality; a future version could compute the CDF
+     * once and sample.                                                    */
+    qreg *temp = qreg_clone(q);
+    for (int s = 0; s < shots; s++) {
+        /* Reset the clone to the original each shot. */
+        memcpy(temp->amp, q->amp, q->local_size * sizeof *q->amp);
+        out[s] = measure_all(temp);
+    }
+    qreg_destroy(temp);
+}
+
+qreg *qreg_clone(const qreg *q) {
+    QREG_ASSERT(q != NULL, "qreg_clone: q is NULL");
+    qreg *c = qreg_create(q->n_qubits, q->comm);
+    if (!c) return NULL;
+    memcpy(c->amp, q->amp, q->local_size * sizeof *q->amp);
+    return c;
+}
+
+void qreg_dump(const qreg *q, FILE *f) {
+    QREG_ASSERT(q != NULL && f != NULL, "qreg_dump: NULL arg");
+    /* Gather to rank 0 and print. */
+    size_t total = (size_t)1 << q->n_qubits;
+    complex double *full = NULL;
+    if (q->rank == 0) full = malloc(total * sizeof *full);
+    MPI_Gather(q->amp,                       (int)q->local_size, MPI_C_DOUBLE_COMPLEX,
+               full,                          (int)q->local_size, MPI_C_DOUBLE_COMPLEX,
+               0, q->comm);
+    if (q->rank == 0) {
+        fprintf(f, "qreg(%d qubits, %zu amplitudes):\n", q->n_qubits, total);
+        for (size_t i = 0; i < total; i++) {
+            if (cabs(full[i]) < 1e-12) continue;
+            fprintf(f, "  |%zu> = (%+.6f, %+.6f)\n",
+                    i, creal(full[i]), cimag(full[i]));
+        }
+        free(full);
+    }
+}

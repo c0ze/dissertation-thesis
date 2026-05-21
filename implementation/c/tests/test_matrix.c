@@ -409,6 +409,38 @@ static void test_measure_qubit_collapse(void) {
     qreg_destroy(q);
 }
 
+static void test_measure_all_deterministic(void) {
+    qreg *q = qreg_create(3, MPI_COMM_WORLD);
+    qreg_init_basis(q, 5);
+    size_t outcome = measure_all(q);
+    TEST_ASSERT_EQUAL_size_t(5, outcome);
+    qreg_destroy(q);
+}
+
+static void test_qreg_clone_independent_copy(void) {
+    qreg *q = qreg_create(3, MPI_COMM_WORLD);
+    qreg_init_basis(q, 5);
+    qreg *c = qreg_clone(q);
+    apply_x(q, 0);                           /* mutate original */
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(c, 5));  /* clone unchanged */
+    qreg_destroy(q); qreg_destroy(c);
+}
+
+static void test_sample_distribution_counts(void) {
+    qreg *q = qreg_create(2, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }
+    if (!is_local_qubit(q, 0)) { qreg_destroy(q); TEST_PASS(); return; }
+    qreg_init_basis(q, 0);
+    apply_h(q, 0);                           /* |+0> -> half on 0, half on 1 */
+    size_t outcomes[1000];
+    sample_distribution(q, outcomes, 1000);
+    /* Outcome must always be 0 or 1 (top bit always 0). */
+    for (int i = 0; i < 1000; i++) {
+        TEST_ASSERT_TRUE(outcomes[i] == 0 || outcomes[i] == 1);
+    }
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -445,6 +477,9 @@ void register_tests(void) {
     RUN_TEST(test_mcx_is_noop_when_a_control_is_zero);
     RUN_TEST(test_measure_qubit_deterministic);
     RUN_TEST(test_measure_qubit_collapse);
+    RUN_TEST(test_measure_all_deterministic);
+    RUN_TEST(test_qreg_clone_independent_copy);
+    RUN_TEST(test_sample_distribution_counts);
 }
 
 TEST_RUNNER_MAIN()
