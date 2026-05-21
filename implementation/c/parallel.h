@@ -16,4 +16,14 @@ void exchange_amplitudes(qreg *q, int partner_rank,
 /* Sendrecvs q->amp <-> recv_buf with partner_rank in q->comm.
  * recv_buf must be q->local_size complex doubles. */
 
+/* Accumulate (global_index, amplitude) pairs into q->amp via MPI_Alltoallv.
+ * After the call, q->amp[i] equals the SUM of every incoming amplitude
+ * whose global index lands on this rank's slice at local offset i.
+ *
+ * Used by shor.c's apply_modular_exp under the distributed layout
+ * (multiple source amplitudes can land on the same destination index).
+ */
+void redistribute_pairs(qreg *q, const size_t *global_indices,
+                        size_t n_pairs, const complex double *values);
+
 #endif

@@ -82,6 +82,46 @@ static void test_exchange_round_trip(void) {
     qreg_destroy(q);
 }
 
+static void test_redistribute_pairs_round_trip(void) {
+    /* Each rank produces a list of (global_index, amplitude) pairs whose
+     * destination is uniformly distributed across all ranks. After the
+     * Alltoallv, every rank should hold exactly the pairs destined for
+     * it, with the amplitudes intact.                                    */
+    qreg *q = qreg_create(4, MPI_COMM_WORLD);
+    size_t total = (size_t)1 << q->n_qubits;
+    /* Each rank emits 4 pairs: indices base, base+1, base+2, base+3 with
+     * base = rank * 4, values (rank+1.0)*100 + i.                        */
+    size_t n_pairs = 4;
+    size_t *idx = malloc(n_pairs * sizeof *idx);
+    complex double *val = malloc(n_pairs * sizeof *val);
+    for (size_t i = 0; i < n_pairs; i++) {
+        idx[i] = ((size_t)q->rank * 4 + i) % total;
+        val[i] = (double)((q->rank + 1) * 100 + (int)i) + 0.0*I;
+    }
+    /* Zero the qreg, then accumulate the redistributed pairs into it. */
+    for (size_t i = 0; i < q->local_size; i++) q->amp[i] = 0.0;
+    redistribute_pairs(q, idx, n_pairs, val);
+    /* Every global index from 0 .. (n_pairs * n_procs - 1) modulo total
+     * should now have exactly one amplitude written. Verify the local
+     * slice has expected values.                                          */
+    size_t base = (size_t)q->rank * q->local_size;
+    for (size_t off = 0; off < q->local_size; off++) {
+        size_t g = base + off;
+        complex double expected = 0.0;
+        /* Find which (rank, i) produced this g. */
+        for (int r = 0; r < q->n_procs; r++) {
+            for (size_t i = 0; i < n_pairs; i++) {
+                if (((size_t)r * 4 + i) % total == g) {
+                    expected += (double)((r + 1) * 100 + (int)i);
+                }
+            }
+        }
+        ASSERT_NEAR_AMP(expected, q->amp[off]);
+    }
+    free(idx); free(val);
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -89,6 +129,7 @@ void register_tests(void) {
     RUN_TEST(test_partner_for_global_qubit);
     RUN_TEST(test_global_local_round_trip);
     RUN_TEST(test_exchange_round_trip);
+    RUN_TEST(test_redistribute_pairs_round_trip);
 }
 
 TEST_RUNNER_MAIN()
