@@ -51,5 +51,8 @@ void apply_z(qreg *q, int target);
 void apply_s    (qreg *q, int target);
 void apply_t    (qreg *q, int target);
 void apply_phase(qreg *q, int target, double theta);
+void apply_rx(qreg *q, int target, double theta);
+void apply_ry(qreg *q, int target, double theta);
+void apply_rz(qreg *q, int target, double theta);
 
 #endif /* MATRIX_H */
