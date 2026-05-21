@@ -4,15 +4,16 @@ Sibling of ``implementation/c`` (MPI) and ``implementation/go``
 (goroutines). The PyTorch backend gives device-agnostic GPU support:
 the same code runs on NVIDIA CUDA, AMD ROCm, Apple Metal (MPS), and CPU.
 
-Through Phase 4 this ships: the data model (:class:`Qreg` construction,
+Through Phase 5 this ships: the data model (:class:`Qreg` construction,
 accessors, the qubit-axis helper), the ``standart`` arithmetic helpers
 (gcd, mod_pow, continued_fraction, is_power_of_two, ilog2_u32), the
 single-qubit gate primitives (``apply_u`` plus the standard named
 gates), the controlled and multi-controlled gates (``apply_cu`` /
 ``apply_cnot`` / ``apply_cz`` / ``apply_controlled_phase`` /
 ``apply_swap`` / ``apply_multi_controlled_z`` /
-``apply_multi_controlled_x``). Measurement (beyond ``prob_of`` /
-``norm``), QFT, Grover, and Shor land in later phases.
+``apply_multi_controlled_x``), and the measurement primitives
+(``measure_qubit`` / ``measure_all`` / ``sample_distribution`` /
+``clone`` / ``dump``). QFT, Grover, and Shor land in later phases.
 
 Public API surface:
 
@@ -56,6 +57,13 @@ from .gates_single import (
     apply_y,
     apply_z,
 )
+from .measure import (
+    clone,
+    dump,
+    measure_all,
+    measure_qubit,
+    sample_distribution,
+)
 from .qreg import (
     AMP_TOL_C64,
     AMP_TOL_C128,
@@ -98,11 +106,16 @@ __all__ = [
     "apply_x",
     "apply_y",
     "apply_z",
+    "clone",
     "continued_fraction",
+    "dump",
     "gcd_u64",
     "ilog2_u32",
     "is_power_of_two",
+    "measure_all",
+    "measure_qubit",
     "mod_pow",
     "prob_tol_for",
     "qubit_axis",
+    "sample_distribution",
 ]

@@ -401,3 +401,52 @@ class Qreg:
         from . import gates_multi
 
         gates_multi.apply_multi_controlled_x(self, controls, target)
+
+    # ---- measurement, sampling, clone, dump (Phase 5) -------------------
+
+    def measure_qubit(self, target: int) -> int:
+        """Projective measurement on ``target``; collapse + renormalise.
+
+        Returns ``0`` or ``1``. See :func:`qubit.measure.measure_qubit`.
+        """
+        from . import measure
+
+        return measure.measure_qubit(self, target)
+
+    def measure_all(self) -> int:
+        """Sample a full basis index from ``|amp|^2`` and collapse.
+
+        See :func:`qubit.measure.measure_all`.
+        """
+        from . import measure
+
+        return measure.measure_all(self)
+
+    def sample_distribution(self, shots: int) -> list[int]:
+        """Run ``shots`` independent measurements; original is unchanged.
+
+        See :func:`qubit.measure.sample_distribution`.
+        """
+        from . import measure
+
+        return measure.sample_distribution(self, shots)
+
+    def clone(self) -> Qreg:
+        """Return an independent copy of this register (amp + RNG state).
+
+        See :func:`qubit.measure.clone`.
+        """
+        from . import measure
+
+        return measure.clone(self)
+
+    def dump(
+        self, *, threshold: float = 0.0
+    ) -> list[tuple[int, complex]]:
+        """Structured list of ``(basis, amplitude)`` with ``|amp| > threshold``.
+
+        See :func:`qubit.measure.dump`.
+        """
+        from . import measure
+
+        return measure.dump(self, threshold=threshold)
