@@ -38,6 +38,11 @@ void apply_h     (qreg *q, int target);                 /* Hadamard */
 void apply_x     (qreg *q, int target);                 /* Pauli-X  */
 void apply_y     (qreg *q, int target);                 /* Pauli-Y  */
 void apply_z     (qreg *q, int target);                 /* Pauli-Z  */
+void apply_s     (qreg *q, int target);                 /* diag(1,i) */
+void apply_t     (qreg *q, int target);                 /* diag(1,e^{i pi/4}) */
+void apply_rx    (qreg *q, int target, double theta);   /* exp(-i theta X / 2) */
+void apply_ry    (qreg *q, int target, double theta);   /* exp(-i theta Y / 2) */
+void apply_rz    (qreg *q, int target, double theta);   /* exp(-i theta Z / 2) */
 void apply_phase (qreg *q, int target, double theta);   /* diag(1,e^{i theta}) */
 void apply_u     (qreg *q, int target, complex double u[2][2]);
 \end{lstlisting}
@@ -45,6 +50,7 @@ void apply_u     (qreg *q, int target, complex double u[2][2]);
 Two-qubit controlled gates take a control qubit and a target qubit:
 \begin{lstlisting}
 void apply_cnot            (qreg *q, int control, int target);
+void apply_cz              (qreg *q, int control, int target);
 void apply_controlled_phase(qreg *q, int control, int target, double theta);
 void apply_cu              (qreg *q, int control, int target,
                             complex double u[2][2]);
@@ -52,6 +58,14 @@ void apply_swap            (qreg *q, int a, int b);
 \end{lstlisting}
 
 For each call, the library inspects whether the target/control qubits are local to this process. If both are local (the common case --- see Section~\ref{sec:parallel}) the gate is applied with no communication; otherwise the library transparently performs the pairwise amplitude exchange and then the local update.
+
+\paragraph{Multi-controlled.} Two convenience wrappers cover the common case of a gate conditioned on all qubits in a register or on an arbitrary subset:
+\begin{lstlisting}
+void apply_multi_controlled_z(qreg *q, int n);
+void apply_multi_controlled_x(qreg *q, const int *controls,
+                              int n_controls, int target);
+\end{lstlisting}
+\verb|apply_multi_controlled_z| flips the sign of $\ket{1\dots1}$ across all $n$ qubits and is the standard Grover diffusion ingredient; \verb|apply_multi_controlled_x| applies $X$ to \texttt{target} only when every qubit in \texttt{controls} is in state $\ket{1}$.
 
 \subsection{Measurement and inspection}
 
@@ -70,17 +84,44 @@ double p = prob_of(q, 42);
 int bit = measure_qubit(q, 3);
 \end{lstlisting}
 
+\verb|sample_distribution| draws \texttt{shots} independent samples from $|\psi|^2$ without collapsing the register, returning the outcomes in \texttt{out}; the helpers \verb|qreg_clone|, \verb|qreg_norm|, and \verb|qreg_dump| support testing and diagnostics:
+\begin{lstlisting}
+void   sample_distribution(const qreg *q, size_t *out, int shots);
+qreg  *qreg_clone         (const qreg *q);
+double qreg_norm          (const qreg *q);
+void   qreg_dump          (const qreg *q, FILE *f);
+\end{lstlisting}
+
 \subsection{Higher-level routines}
 
-The chapters on the QFT (Section~\ref{sec:qft}), Grover (Section~\ref{sec:grover}), and Shor (Section~\ref{sec:shor}) build on the primitives above. The QFT is a double loop of Hadamards and controlled phases; Grover is a uniform-superposition initialisation followed by alternating oracle and diffusion calls; Shor combines phase estimation, controlled modular exponentiation, and inverse QFT. Each is exposed as a top-level function in the library so applications need not assemble the circuit by hand:
+The chapters on the QFT (Section~\ref{sec:qft}), Grover (Section~\ref{sec:grover}), and Shor (Section~\ref{sec:shor}) build on the primitives above. The QFT is a double loop of Hadamards and controlled phases; Grover is a uniform-superposition initialisation followed by alternating oracle and diffusion calls; Shor combines phase estimation, controlled modular exponentiation, and inverse QFT. Each is exposed as a top-level function in the library so applications need not assemble the circuit by hand. The Grover oracle is supplied as a callback together with an opaque \texttt{user} pointer carrying its context, and the Shor period-finder returns the recovered period \texttt{r} together with the raw measurement \texttt{measured\_c} in a small result struct:
 
 \begin{lstlisting}
+typedef void (*oracle_fn)(qreg *q, void *user);
+
+typedef struct {
+    uint64_t r;            /* recovered period (0 on failure)      */
+    uint64_t measured_c;   /* raw counting-register outcome        */
+} shor_period_result;
+
 void apply_qft         (qreg *q, int start, int n);
 void apply_qft_inverse (qreg *q, int start, int n);
-void apply_grover      (qreg *q, int n, oracle_fn oracle, int iterations);
-void apply_shor_period (qreg *q, int counting_start, int t,
+void apply_grover      (qreg *q, int n_qubits, oracle_fn oracle,
+                        void *user, int iterations);
+shor_period_result
+     apply_shor_period (qreg *q, int counting_start, int t,
                         int target_start, int n,
-                        int a, int N);
+                        uint64_t a, uint64_t N);
+\end{lstlisting}
+
+A top-level wrapper composes random base selection, period finding, and classical post-processing into a single call that attempts to factor $N$ up to \texttt{max\_attempts} times:
+\begin{lstlisting}
+typedef struct {
+    uint64_t p, q;   /* non-trivial factors (1, N on failure)      */
+    int attempts;    /* number of period-finding rounds used       */
+} shor_factor_result;
+
+shor_factor_result shor_factor(uint64_t N, int max_attempts);
 \end{lstlisting}
 
 \subsection{Note on the bundled 2004 implementation}
