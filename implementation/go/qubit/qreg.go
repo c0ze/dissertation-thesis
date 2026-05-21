@@ -74,3 +74,40 @@ func (q *Qreg) InitBasis(basis uint64) {
 	}
 	q.amp[basis] = complex(1, 0)
 }
+
+// Amplitude returns the i-th amplitude. Panics if i is out of range.
+// Use this for single bounds-checked reads; for full vectors use
+// AmplitudesCopy.
+func (q *Qreg) Amplitude(i uint64) complex128 {
+	assert(i < uint64(len(q.amp)),
+		"Amplitude: i=%d out of [0, %d)", i, len(q.amp))
+	return q.amp[i]
+}
+
+// AmplitudesCopy returns a fresh copy of the full amplitude slice.
+// Mutating the returned slice does NOT affect the register; that is
+// the point -- the live amp slice is intentionally unexported. For
+// in-place inspection that does not need a copy, use Amplitude.
+func (q *Qreg) AmplitudesCopy() []complex128 {
+	out := make([]complex128, len(q.amp))
+	copy(out, q.amp)
+	return out
+}
+
+// ProbOf returns |amp[basis]|^2. Panics if basis is out of range.
+func (q *Qreg) ProbOf(basis uint64) float64 {
+	assert(basis < uint64(len(q.amp)),
+		"ProbOf: basis=%d out of [0, %d)", basis, len(q.amp))
+	a := q.amp[basis]
+	return real(a)*real(a) + imag(a)*imag(a)
+}
+
+// Norm returns sum over i of |amp[i]|^2. For a valid state vector,
+// this is 1.0 to within floating-point precision.
+func (q *Qreg) Norm() float64 {
+	var sum float64
+	for _, a := range q.amp {
+		sum += real(a)*real(a) + imag(a)*imag(a)
+	}
+	return sum
+}

@@ -69,3 +69,60 @@ func TestInitBasisRejectsOutOfRange(t *testing.T) {
 	}()
 	q.InitBasis(8) // out of range for 3-qubit register
 }
+
+func TestAmplitudeReadsBack(t *testing.T) {
+	q, _ := NewQreg(3)
+	q.InitBasis(2)
+	if got := q.Amplitude(2); got != complex(1, 0) {
+		t.Errorf("Amplitude(2) = %v, want (1+0i)", got)
+	}
+	if got := q.Amplitude(3); got != complex(0, 0) {
+		t.Errorf("Amplitude(3) = %v, want (0+0i)", got)
+	}
+}
+
+func TestAmplitudePanicsOutOfRange(t *testing.T) {
+	q, _ := NewQreg(2)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for Amplitude(4)")
+		}
+	}()
+	q.Amplitude(4)
+}
+
+func TestAmplitudesCopyIsIndependent(t *testing.T) {
+	q, _ := NewQreg(2)
+	q.InitBasis(0)
+	c := q.AmplitudesCopy()
+	c[0] = complex(99, 0) // mutate the copy
+	if q.amp[0] != complex(1, 0) {
+		t.Errorf("AmplitudesCopy returned an aliased slice: q.amp[0] = %v", q.amp[0])
+	}
+}
+
+func TestProbOfBasisState(t *testing.T) {
+	q, _ := NewQreg(2)
+	q.InitBasis(3)
+	if got := q.ProbOf(3); got != 1.0 {
+		t.Errorf("ProbOf(3) = %v, want 1.0", got)
+	}
+	if got := q.ProbOf(0); got != 0.0 {
+		t.Errorf("ProbOf(0) = %v, want 0.0", got)
+	}
+}
+
+func TestNormOnBasisStateIsOne(t *testing.T) {
+	q, _ := NewQreg(4)
+	q.InitBasis(7)
+	if got := q.Norm(); abs(got-1.0) > ProbTol {
+		t.Errorf("Norm = %v, want 1.0", got)
+	}
+}
+
+func abs(x float64) float64 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
