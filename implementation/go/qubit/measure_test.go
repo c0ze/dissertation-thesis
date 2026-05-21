@@ -77,6 +77,18 @@ func TestCloneIsIndependent(t *testing.T) {
 	assertAmpNear(t, complex(1, 0), q.amp[2], "original after clone mutation")
 }
 
+func TestSampleDistributionPanicsOnNegativeShots(t *testing.T) {
+	q, _ := NewQreg(2)
+	q.InitBasis(0)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for shots=-1")
+		}
+	}()
+	out := make([]uint64, 10)
+	q.SampleDistribution(out, -1)
+}
+
 func TestSampleDistributionPreservesOriginal(t *testing.T) {
 	q, _ := NewQreg(2, WithSeed(11))
 	q.InitBasis(0)

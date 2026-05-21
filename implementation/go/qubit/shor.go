@@ -1,6 +1,7 @@
 package qubit
 
 import (
+	"math/bits"
 	"math/rand"
 	"time"
 )
@@ -120,13 +121,20 @@ func ShorFactor(N uint64, maxAttempts int) ShorFactorResult {
 	if N%2 == 0 {
 		return ShorFactorResult{P: 2, Q: N / 2, Attempts: 0}
 	}
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	n := 0
-	for (uint64(1) << uint(n)) < N {
-		n++
-	}
+	// Target-register bit-width: smallest n with 2^n >= N. Use
+	// math/bits.Len64(N-1) instead of a hand-rolled shift loop, which
+	// would loop forever for N > 2^63 (uint64(1) << 64 is 0 in Go, so
+	// the condition `0 < N` never becomes false).
+	n := bits.Len64(N - 1)
 	tBits := 2*n + 1
 	nTotal := tBits + n
+	// Reject upfront if the required Qreg exceeds QregMaxQubits, so we
+	// don't burn random base-selection effort just to fail inside the
+	// attempt loop on every iteration.
+	if nTotal > QregMaxQubits {
+		return ShorFactorResult{P: 0, Q: 0, Attempts: 0}
+	}
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		// Pick random a in [2, N-1]. If we get lucky and a is already
 		// a non-trivial divisor of N, return early -- no period

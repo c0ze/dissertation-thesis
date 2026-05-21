@@ -46,6 +46,31 @@ func TestShorPeriodA7Mod15(t *testing.T) {
 	}
 }
 
+func TestShorFactorRejectsOversizedN(t *testing.T) {
+	// (2^25 + 1) needs a 3*log2(N)+1 ~= 79-qubit register at
+	// QregMaxQubits=26. ShorFactor should reject upfront rather than
+	// burn random-base effort and fail inside the attempt loop.
+	// Returns {0, 0, 0}. Using 2^25+1 (odd) so we bypass the
+	// N%2==0 short-circuit at the top of ShorFactor.
+	res := ShorFactor((1<<25)+1, 8)
+	if res.P != 0 || res.Q != 0 || res.Attempts != 0 {
+		t.Errorf("ShorFactor(2^25+1) = {P:%d, Q:%d, Attempts:%d}, want all zero",
+			res.P, res.Q, res.Attempts)
+	}
+}
+
+func TestShorFactorHandlesHugeN(t *testing.T) {
+	// N > 2^63 used to hang the old shift-based bit-width loop
+	// (uint64(1) << 64 = 0 in Go, so `0 < N` never becomes false).
+	// With bits.Len64(N-1) this terminates immediately and the upfront
+	// QregMaxQubits check rejects without entering the attempt loop.
+	res := ShorFactor(uint64(1)<<63+7, 1)
+	if res.P != 0 || res.Q != 0 || res.Attempts != 0 {
+		t.Errorf("ShorFactor(2^63+7) = {P:%d, Q:%d, Attempts:%d}, want all zero",
+			res.P, res.Q, res.Attempts)
+	}
+}
+
 func TestShorFactor15(t *testing.T) {
 	res := ShorFactor(15, 8)
 	if res.P == 0 || res.Q == 0 {

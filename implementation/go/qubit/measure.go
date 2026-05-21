@@ -101,6 +101,8 @@ func (q *Qreg) Clone() *Qreg {
 // of the register and writes the outcomes into out[0..shots). The
 // original q is unmodified. len(out) must be >= shots.
 func (q *Qreg) SampleDistribution(out []uint64, shots int) {
+	assert(shots >= 0,
+		"SampleDistribution: shots=%d must be >= 0", shots)
 	assert(len(out) >= shots,
 		"SampleDistribution: len(out)=%d < shots=%d", len(out), shots)
 	for s := 0; s < shots; s++ {

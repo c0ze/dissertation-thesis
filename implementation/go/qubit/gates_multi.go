@@ -31,7 +31,10 @@ func (q *Qreg) ApplyMultiControlledX(controls []int, target int) {
 			"ApplyMultiControlledX: control=%d out of [0, %d)", c, q.nQubits)
 		assert(c != target,
 			"ApplyMultiControlledX: control %d == target", c)
-		cMask |= 1 << uint(c)
+		bit := uint64(1) << uint(c)
+		assert(cMask&bit == 0,
+			"ApplyMultiControlledX: duplicate control=%d in %v", c, controls)
+		cMask |= bit
 	}
 	tBit := uint(target)
 	tMask := uint64(1) << tBit

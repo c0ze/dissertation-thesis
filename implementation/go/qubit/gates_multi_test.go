@@ -40,3 +40,16 @@ func TestApplyMultiControlledXSkipsWhenAnyControlZero(t *testing.T) {
 	// Should not flip: |001> stays
 	assertAmpNear(t, complex(1, 0), q.amp[1], "Toffoli on |001>: amp[1] unchanged")
 }
+
+func TestApplyMultiControlledXPanicsOnDuplicateControls(t *testing.T) {
+	// []int{0, 0} would silently OR to a single-bit mask and behave
+	// like a 1-control CNOT -- almost certainly caller error and a
+	// violation of the "controls distinct" invariant used elsewhere.
+	q, _ := NewQreg(3)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for duplicate controls []int{0,0}")
+		}
+	}()
+	q.ApplyMultiControlledX([]int{0, 0}, 2)
+}
