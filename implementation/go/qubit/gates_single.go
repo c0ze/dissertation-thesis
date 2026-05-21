@@ -33,3 +33,33 @@ func (q *Qreg) ApplyH(target int) {
 		{inv2, -inv2},
 	})
 }
+
+// ApplyX applies the Pauli-X (NOT) gate.
+//
+//	X = [[0, 1], [1, 0]]
+func (q *Qreg) ApplyX(target int) {
+	q.ApplyU(target, [2][2]complex128{
+		{0, 1},
+		{1, 0},
+	})
+}
+
+// ApplyY applies the Pauli-Y gate.
+//
+//	Y = [[0, -i], [i, 0]]
+func (q *Qreg) ApplyY(target int) {
+	q.ApplyU(target, [2][2]complex128{
+		{0, complex(0, -1)},
+		{complex(0, 1), 0},
+	})
+}
+
+// ApplyZ applies the Pauli-Z gate.
+//
+//	Z = [[1, 0], [0, -1]]
+func (q *Qreg) ApplyZ(target int) {
+	q.ApplyU(target, [2][2]complex128{
+		{1, 0},
+		{0, -1},
+	})
+}
