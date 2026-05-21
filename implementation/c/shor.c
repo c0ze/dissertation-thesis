@@ -99,35 +99,43 @@ shor_factor_result shor_factor(uint64_t N, int max_attempts) {
     QREG_ASSERT(N >= 4, "shor_factor: N too small");
     QREG_ASSERT(max_attempts > 0, "shor_factor: max_attempts < 1");
     shor_factor_result out = {0, 0, 0};
-    /* Handle even N trivially. */
+    /* Handle even N trivially -- all ranks return identically. */
     if ((N & 1) == 0) { out.p = 2; out.q = N / 2; out.attempts = 0; return out; }
-    /* Pick the bit width for the target register: n = ceil(log2 N).
-     * Counting width: t = 2n + 1.                                       */
     int n = 0;
     while (((uint64_t)1 << n) < N) n++;
     int t = 2 * n + 1;
     int n_total = t + n;
     if (n_total > QREG_MAX_QUBITS) { out.attempts = 0; return out; }
-    /* Seed once per process. Each rank uses its rank to differ. */
     int rank;  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (!s_seeded) { srand((unsigned)time(NULL) + (unsigned)rank); s_seeded = 1; }
+    /* Seed rand on rank 0 only; all other ranks never call rand directly. */
+    if (rank == 0 && !s_seeded) {
+        srand((unsigned)time(NULL));
+        s_seeded = 1;
+    }
     for (int attempt = 1; attempt <= max_attempts; attempt++) {
         out.attempts = attempt;
-        uint64_t a = 2 + ((uint64_t)rand() % (N - 3));   /* in [2, N-2] */
+        /* Rank 0 picks a, then broadcasts so all ranks agree. */
+        uint64_t a = 0;
+        if (rank == 0) a = 2 + ((uint64_t)rand() % (N - 3));
+        MPI_Bcast(&a, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+        /* gcd is deterministic; every rank computes the same g. */
         uint64_t g = gcd_u64(a, N);
-        if (g > 1) { out.p = g; out.q = N / g; return out; }    /* lucky */
+        if (g > 1) { out.p = g; out.q = N / g; return out; }
+        /* All ranks run the same period finder for the same a. */
         qreg *q = qreg_create(n_total, MPI_COMM_WORLD);
         shor_period_result pr = apply_shor_period(q, /*cs=*/n, t, /*ts=*/0,
                                                   n, a, N);
         qreg_destroy(q);
         uint64_t r = pr.r;
-        if (r == 0 || (r & 1)) continue;                 /* need even r */
+        /* pr.r is identical on every rank because measure_qubit broadcasts
+         * its outcome and continued_fraction is deterministic. */
+        if (r == 0 || (r & 1)) continue;
         uint64_t x  = mod_pow(a, r / 2, N);
-        if (x + 1 == N) continue;                        /* trivial */
+        if (x + 1 == N) continue;
         uint64_t p1 = gcd_u64(x + 1, N);
         uint64_t p2 = gcd_u64(x + N - 1, N);
         if (p1 > 1 && p1 < N) { out.p = p1; out.q = N / p1; return out; }
         if (p2 > 1 && p2 < N) { out.p = p2; out.q = N / p2; return out; }
     }
-    return out;   /* p = q = 0 on failure */
+    return out;
 }
