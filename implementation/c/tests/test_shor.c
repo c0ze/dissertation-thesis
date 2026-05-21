@@ -41,11 +41,29 @@ static void test_modular_exp_maps_within_ring(void) {
     qreg_destroy(q);
 }
 
+static void test_shor_period_a7_mod15(void) {
+    /* Order of 7 mod 15 is 4. Use t=8 counting + n=4 target = 12 qubits.
+     * That's 2^12 = 4096 amplitudes, comfortable.                        */
+    int n = 4;
+    int t = 8;
+    int n_total = t + n;
+    if (n_total > 14) { TEST_PASS(); return; }
+    qreg *q = qreg_create(n_total, MPI_COMM_WORLD);
+    shor_period_result res = apply_shor_period(q, /*cs=*/n, t, /*ts=*/0, n,
+                                               /*a=*/7, /*N=*/15);
+    /* Recovered period must be a divisor of true r=4 OR equal to it. */
+    TEST_ASSERT_TRUE_MESSAGE(res.r != 0, "Shor period finder returned 0");
+    TEST_ASSERT_TRUE_MESSAGE(res.r == 4 || res.r == 2 || res.r == 1,
+        "Shor period finder returned an unexpected period");
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
     RUN_TEST(test_modular_exp_passes_through_y_ge_N);
     RUN_TEST(test_modular_exp_maps_within_ring);
+    RUN_TEST(test_shor_period_a7_mod15);
 }
 
 TEST_RUNNER_MAIN()

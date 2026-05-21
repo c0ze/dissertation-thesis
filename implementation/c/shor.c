@@ -1,6 +1,8 @@
 #include "shor.h"
 #include "parallel.h"
+#include "qft.h"
 #include "standart.h"
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -59,11 +61,36 @@ void apply_modular_exp(qreg *q,
     free(idx); free(val);
 }
 
-shor_period_result apply_shor_period(qreg *q, int cs, int t, int ts, int n,
+shor_period_result apply_shor_period(qreg *q,
+                                     int counting_start, int t,
+                                     int target_start,   int n,
                                      uint64_t a, uint64_t N) {
-    (void)q; (void)cs; (void)t; (void)ts; (void)n; (void)a; (void)N;
-    shor_period_result r = {0, 0};
-    return r;
+    QREG_ASSERT(q != NULL,                 "apply_shor_period: q is NULL");
+    QREG_ASSERT(counting_start >= 0 && t >= 1, "bad counting range");
+    QREG_ASSERT(target_start  >= 0 && n >= 1, "bad target range");
+    /* Setup: counting register in uniform superposition, target in |1>. */
+    /* Zero everything, then set the single basis state with y=1, x=0. */
+    qreg_init_basis(q, (size_t)1 << target_start);
+    /* Hadamards on the counting register. */
+    for (int j = 0; j < t; j++) apply_h(q, counting_start + j);
+    /* Apply modular exponentiation. */
+    apply_modular_exp(q, counting_start, t, target_start, n, a, N);
+    /* Inverse QFT on the counting register. */
+    apply_qft_inverse(q, counting_start, t);
+    /* Measure the counting register to get integer c. We measure each
+     * qubit and combine; alternatively we could call measure_all and
+     * mask out the counting bits. Use bitwise measure_qubit calls.       */
+    uint64_t c = 0;
+    for (int j = 0; j < t; j++) {
+        int bit = measure_qubit(q, counting_start + j);
+        c |= ((uint64_t)bit) << j;
+    }
+    /* Classical post-processing: continued-fraction expansion of c/2^t. */
+    double x = (double)c / (double)((uint64_t)1 << t);
+    uint64_t num = 0, den = 0;
+    continued_fraction(x, N, &num, &den);
+    shor_period_result res = { .r = den, .measured_c = c };
+    return res;
 }
 shor_factor_result shor_factor(uint64_t N, int max_attempts) {
     (void)N; (void)max_attempts;
