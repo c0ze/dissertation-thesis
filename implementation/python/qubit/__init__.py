@@ -36,6 +36,17 @@ Public API surface:
 
 from __future__ import annotations
 
+import warnings
+
+# PyTorch warns when its optional NumPy bridge cannot initialize. The
+# simulator does not use NumPy, so suppress only this known optional-bridge
+# warning while leaving all other PyTorch warnings visible.
+warnings.filterwarnings(
+    "ignore",
+    message=r"Failed to initialize NumPy: No module named 'numpy'.*",
+    category=UserWarning,
+)
+
 from ._axis import qubit_axis
 from .gates_controlled import (
     apply_cnot,

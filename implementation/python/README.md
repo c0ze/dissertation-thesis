@@ -55,7 +55,7 @@ Function-style (`apply_h(q, 0)`) and method-style (`q.apply_h(0)`)
 call shapes are both first-class for every gate, measurement op, QFT,
 Grover, and Shor primitive.
 
-**Tests:** 410 default + 1 gated Shor-21 = **411 total**. All green
+**Tests:** 414 default + 1 gated Shor-21 = **415 total**. All green
 under `ruff check`, `mypy --strict`, and on every available device
 (CPU + MPS locally; CPU-only on Linux CI).
 
@@ -64,7 +64,7 @@ under `ruff check`, `mypy --strict`, and on every available device
 ```bash
 cd implementation/python
 make sync                      # creates .venv, installs torch + dev tools
-make test                      # 410 tests, ~0.5s on Apple Silicon
+make test                      # 414 active tests, ~0.5s on Apple Silicon
 make check                     # lint + typecheck + test (the full PR gate)
 
 make demo                      # default: bell

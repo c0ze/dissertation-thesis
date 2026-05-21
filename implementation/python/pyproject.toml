@@ -42,6 +42,9 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# Package initialisation installs a narrow PyTorch optional-NumPy warning
+# filter before importing torch-backed modules.
+"qubit/__init__.py" = ["E402"]
 # Tests touch the private _amp/_n/_gen fields by design (same-package
 # inspection of internal state). Allow underscore-prefix access there.
 # Also allow uppercase N in test names and local variables -- Shor's

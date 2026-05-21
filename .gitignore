@@ -26,6 +26,9 @@
 source\ code/build/
 implementation/*/build/
 
+# Agent coordination scratch
+.agent-handoff/
+
 # Private research/source archive
 thesis-Docs/
 

@@ -103,9 +103,10 @@ deviations from the abstract API:
 
 ## Test matrix
 
-`uv run pytest -q` covers **410 tests** in well under a second on
+`uv run pytest -q` covers **414 active tests** in well under a second on
 Apple Silicon (`make check` adds `ruff` and `mypy --strict`). The
-gated Shor-21 test unlocks via `RUN_SHOR_21=1` and runs the 16-qubit
+gated Shor-21 test brings the total to **415** via `RUN_SHOR_21=1`
+and runs the 16-qubit
 period-finding circuit with fixed `a=2`; the only stochasticity is
 the QFT-readout measurement, so the test asserts the recovered
 period divides 6 (the true order of 2 mod 21).
