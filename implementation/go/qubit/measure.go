@@ -96,3 +96,15 @@ func (q *Qreg) Clone() *Qreg {
 	copy(c.amp, q.amp)
 	return c
 }
+
+// SampleDistribution runs `shots` independent measurements on a clone
+// of the register and writes the outcomes into out[0..shots). The
+// original q is unmodified. len(out) must be >= shots.
+func (q *Qreg) SampleDistribution(out []uint64, shots int) {
+	assert(len(out) >= shots,
+		"SampleDistribution: len(out)=%d < shots=%d", len(out), shots)
+	for s := 0; s < shots; s++ {
+		c := q.Clone()
+		out[s] = c.MeasureAll()
+	}
+}

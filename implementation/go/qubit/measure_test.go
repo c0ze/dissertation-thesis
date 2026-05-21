@@ -76,3 +76,30 @@ func TestCloneIsIndependent(t *testing.T) {
 	// Original amp[2] should still be 1.
 	assertAmpNear(t, complex(1, 0), q.amp[2], "original after clone mutation")
 }
+
+func TestSampleDistributionPreservesOriginal(t *testing.T) {
+	q, _ := NewQreg(2, WithSeed(11))
+	q.InitBasis(0)
+	q.ApplyH(0)
+	q.ApplyH(1) // uniform over {0,1,2,3}
+	out := make([]uint64, 1000)
+	q.SampleDistribution(out, 1000)
+	// Count each outcome; with 1000 shots over 4 outcomes, each should
+	// be roughly 250 +/- 60 (3-sigma).
+	counts := [4]int{}
+	for _, v := range out {
+		if v >= 4 {
+			t.Fatalf("got outcome %d outside [0,4)", v)
+		}
+		counts[v]++
+	}
+	for i, c := range counts {
+		if c < 150 || c > 350 {
+			t.Errorf("outcome %d count = %d, expected near 250", i, c)
+		}
+	}
+	// Original should still be uniform (norm 1, four equal amplitudes).
+	if abs(q.Norm()-1.0) > ProbTol {
+		t.Errorf("original norm after sampling = %v, want 1.0", q.Norm())
+	}
+}
