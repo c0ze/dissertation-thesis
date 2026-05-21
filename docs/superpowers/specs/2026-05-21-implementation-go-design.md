@@ -844,7 +844,7 @@ go-tests:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
       with:
-        go-version: '1.22'
+        go-version: '1.21'
     - run: make test
       working-directory: implementation/go
     - run: make test-race

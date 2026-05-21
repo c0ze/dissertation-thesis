@@ -6,7 +6,7 @@
 
 **Architecture:** Single package `qubit/` plus a `cmd/qubit/` CLI. Per-call `go func()` + `sync.WaitGroup.Wait()` for gate-internal fan-out — no persistent worker pool. Methods on `*Qreg` for all state-mutating operations (`ApplyH`, `ApplyQFT`, `ApplyShorPeriod`, `ApplyModularExp`); package functions reserved for entry points that allocate their own register (`ShorFactor` only). Programmer errors `panic` with a formatted message; construction errors return `error` from `NewQreg`. Ceiling at 26 qubits to keep `NewQreg` cleanly succeed-or-error on a 16 GiB laptop.
 
-**Tech Stack:** Go 1.22+. Standard library only — `math`, `math/cmplx`, `math/rand`, `sync`, `runtime`, `fmt`, `io`, `os`, `time`. No external dependencies. `testing` package for tests; `go test -race` gated by `make test-race`.
+**Tech Stack:** Go 1.21+ (the user's system Go at `/usr/local/go/bin/go` is 1.21.9; plan uses no 1.22-specific features). Standard library only — `math`, `math/cmplx`, `math/rand`, `sync`, `runtime`, `fmt`, `io`, `os`, `time`. No external dependencies. `testing` package for tests; `go test -race` gated by `make test-race`.
 
 **Spec:** `docs/superpowers/specs/2026-05-21-implementation-go-design.md`. Re-read it whenever a task says "see spec §X" — the spec is the source of truth for invariants and API contracts.
 
@@ -35,7 +35,7 @@ mkdir -p implementation/go/qubit implementation/go/cmd/qubit
 ```
 module github.com/arda-karaduman/thesis-go
 
-go 1.22
+go 1.21
 ```
 
 (The module path is invented — there's no actual GitHub repo to publish to, and no external deps will import this code. It just needs to be a valid path so `go build` accepts it.)
@@ -3571,7 +3571,7 @@ Add to `.github/workflows/ci.yml` under the existing `jobs:` map:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.21'
       - name: go build
         working-directory: implementation/go
         run: go build ./...
@@ -3593,7 +3593,7 @@ Add to `.github/workflows/ci.yml` under the existing `jobs:` map:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.21'
       - name: go test with RUN_SHOR_21=1
         working-directory: implementation/go
         run: RUN_SHOR_21=1 go test ./qubit/ -run TestShorPeriodA2Mod21 -v
