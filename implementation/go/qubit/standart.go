@@ -21,3 +21,23 @@ func addMod(a, b, mod uint64) uint64 {
 	}
 	return a + b
 }
+
+// MulMod returns (a * b) mod mod using double-and-add over addMod.
+// Safe for any mod < 2^64 (the entire representable range); the loop
+// invariant `result < mod && a < mod` is preserved by addMod every
+// iteration, so the body never overflows regardless of mod's magnitude.
+func MulMod(a, b, mod uint64) uint64 {
+	if mod == 0 {
+		return 0
+	}
+	var result uint64
+	a %= mod
+	for b > 0 {
+		if b&1 == 1 {
+			result = addMod(result, a, mod)
+		}
+		a = addMod(a, a, mod) // doubling step
+		b >>= 1
+	}
+	return result
+}

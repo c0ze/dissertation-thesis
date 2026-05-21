@@ -21,6 +21,30 @@ func TestGCD(t *testing.T) {
 	}
 }
 
+func TestMulMod(t *testing.T) {
+	cases := []struct {
+		a, b, mod, want uint64
+	}{
+		{0, 5, 7, 0},
+		{3, 4, 7, 5},        // 12 mod 7 = 5
+		{1234567, 7654321, 1000000007, 772047864},
+		{1 << 40, 1 << 40, 1 << 50, 0},      // exact-power-of-2 case
+	}
+	for _, c := range cases {
+		got := MulMod(c.a, c.b, c.mod)
+		if got != c.want {
+			t.Errorf("MulMod(%d, %d, %d) = %d, want %d",
+				c.a, c.b, c.mod, got, c.want)
+		}
+	}
+}
+
+func TestMulModZeroModulus(t *testing.T) {
+	if got := MulMod(5, 7, 0); got != 0 {
+		t.Errorf("MulMod(5, 7, 0) = %d, want 0", got)
+	}
+}
+
 func TestAddMod(t *testing.T) {
 	cases := []struct {
 		a, b, mod, want uint64
