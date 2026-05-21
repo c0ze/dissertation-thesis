@@ -320,6 +320,16 @@ def shor_factor(
     attempt number on which a factor was found, or ``max_attempts`` on
     failure.
 
+    Scope caveat: this function does NOT detect prime powers
+    (``N = p**k`` for prime ``p``, ``k >= 2``). For those inputs, the
+    period-finding step has no useful order to recover, every attempt
+    fails the ``a**(r/2) != N - 1`` check or returns ``period == 0``,
+    and the function exhausts ``max_attempts`` then reports failure.
+    The classical pre-check (try ``round(N**(1/k)) ** k == N`` for
+    every ``k`` in ``[2, log2 N]``) belongs in the caller, matching
+    ``/c`` and ``/go``'s scope. Even ``N`` is handled here (short-
+    circuit).
+
     Algorithm:
 
     1. Validate ``N >= 2`` and ``max_attempts >= 1``.

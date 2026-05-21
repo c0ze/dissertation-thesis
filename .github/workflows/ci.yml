@@ -156,3 +156,49 @@ jobs:
       - name: go test with RUN_SHOR_21=1
         working-directory: implementation/go
         run: RUN_SHOR_21=1 go test ./qubit/ -run TestShorPeriodA2Mod21 -v
+
+  python-tests:
+    # Pure-Python / PyTorch sibling at implementation/python/. Runs the
+    # full `make check` gate (ruff + mypy + pytest) on Linux CPU.
+    # MPS/CUDA paths aren't exercised here because GitHub-hosted
+    # runners don't have GPUs; local devs cover those via the
+    # device-parametrised tests on Apple Silicon.
+    name: implementation/python -- make check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Sync dev environment
+        working-directory: implementation/python
+        run: uv sync --group dev
+      - name: Run make check (lint + typecheck + test)
+        working-directory: implementation/python
+        run: make check
+      - name: Smoke-test each CLI demo
+        working-directory: implementation/python
+        run: |
+          uv run qubit-demo --algo bell
+          uv run qubit-demo --algo qft
+          uv run qubit-demo --algo grover
+          uv run qubit-demo --algo shor
+
+  python-tests-shor-21:
+    # Gated 16-qubit Shor-21 period-finding test, mirrors the C and
+    # Go gated jobs above. Runs `apply_shor_period` with fixed a=2 so
+    # the only stochasticity is the QFT-readout measurement; asserts
+    # the recovered period divides 6 (the true order of 2 mod 21).
+    name: implementation/python -- gated Shor-21
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Sync dev environment
+        working-directory: implementation/python
+        run: uv sync --group dev
+      - name: Run gated Shor-21 test
+        working-directory: implementation/python
+        env:
+          RUN_SHOR_21: "1"
+        run: uv run pytest tests/test_shor.py -q

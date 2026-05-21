@@ -9,13 +9,16 @@
 #   make format      uv run ruff format .
 #   make typecheck   uv run mypy qubit tests
 #   make check       lint + typecheck + test      (the standard PR gate)
-#   make demo        uv run qubit-demo            (Phase 11; not in Phase 0+1)
+#   make demo ALGO=bell|qft|grover|shor
+#                    uv run qubit-demo --algo $(ALGO)
 #   make clean       rm -rf .venv .pytest_cache .ruff_cache .mypy_cache
 #
 # The implementation/python module is managed by `uv`; the Makefile is a
 # thin convenience wrapper. Most one-off operations can use `uv run <tool>`
 # directly.
 # ---------------------------------------------------------------------------
+
+ALGO ?= bell
 
 .PHONY: sync test test-cpu lint format typecheck check demo clean
 
@@ -40,8 +43,7 @@ typecheck:
 check: lint typecheck test
 
 demo:
-	@echo "Demo target not implemented in Phase 0+1 (gates/algorithms still TODO)."
-	@exit 1
+	uv run qubit-demo --algo $(ALGO)
 
 clean:
 	rm -rf .venv .pytest_cache .ruff_cache .mypy_cache build dist *.egg-info
