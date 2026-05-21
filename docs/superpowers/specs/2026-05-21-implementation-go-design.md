@@ -1,7 +1,7 @@
 # Design: implementation/go --- goroutine-parallel quantum simulator
 
 **Date:** 2026-05-21
-**Status:** Round-6 revision applied (QregMaxQubits 30→26 for laptop-realistic ceiling; perf targets split "25=operating point" from "26=headroom"; "qreg lifecycle" wording dropped where it implied /c-style create+destroy parity). Awaiting written spec review.
+**Status:** Round-7 revision applied (MiB/GB consistency throughout; "~8x cohabitation headroom" replaced with concrete "2 GiB peak vs 16 GiB physical RAM"). Awaiting written spec review.
 **Owner:** Arda Karaduman
 **Author of this doc:** Claude
 
@@ -14,7 +14,7 @@ Grover, Shor). Use Go's
 goroutines for concurrency instead of MPI --- spawned per call from
 `parallelOverPairs`/`parallelOverIndices` and joined via
 `sync.WaitGroup`, no persistent pool to manage. Target 25 qubits
-comfortably on a 16 GB laptop. Single-process by design --- no
+comfortably on a 16 GiB laptop. Single-process by design --- no
 distributed nodes, no MPI.
 
 This is one of two alternative implementations being added alongside `/c`
@@ -28,7 +28,7 @@ subproject with its own spec.
 |---|---|---|
 | Concurrency model | Per-call goroutines spawned by the parallel dispatcher (`parallelOverPairs`, `parallelOverIndices`) and joined via `sync.WaitGroup`. No persistent pool, no channels. Goroutine launch is microseconds; even the lightest 25-qubit gate is tens of milliseconds of useful work, so the dispatch overhead disappears into the noise. | User decision (brainstorm Q2 + spec round 4) |
 | API style | Idiomatic Go. Every operation that mutates a register's state is a method on `*Qreg` (gates, measurement, QFT, Grover, ModularExp, ShorPeriod). Package-level functions are reserved for entry points that *create* their own register (`ShorFactor` is the only one in v1). Apply-prefix used uniformly for state-mutating methods (`ApplyH`, `ApplyQFT`, `ApplyShorPeriod`). Construction takes functional options (`NewQreg(n, WithSeed(42), WithWorkers(8))`) instead of post-construction mutators. | User decision (brainstorm Q3), tightened in spec round 3, options added in round 4 |
-| Target scale | 25 qubits comfortably (laptop, 512 MB state vector) | User decision (brainstorm Q1) |
+| Target scale | 25 qubits comfortably (laptop, 512 MiB state vector; 1 GiB peak during ApplyModularExp) | User decision (brainstorm Q1) |
 | Module layout | Library under `qubit/`, binary under `cmd/qubit/`, tests adjacent as `_test.go` | Standard Go convention |
 | Validation policy | Programmer errors (out-of-range qubit index, invalid preconditions) `panic` with a formatted message. Construction errors (invalid `nQubits`) return `error` from `NewQreg`. Library code never calls `os.Exit`; the CLI binary in `cmd/qubit` is the only place that translates panics into process exit codes. | User decision (spec round 4); diverges from `/c` deliberately to fit Go convention |
 | Sequential fallback | None --- every gate goes through `parallelOverPairs`/`parallelOverIndices` regardless of register size. With per-call goroutines, the dispatch overhead is negligible even on 4-qubit toy tests. | User decision |
@@ -96,11 +96,14 @@ so the cross-implementation parallel is visually obvious.
 //     n=29 -> 8 GiB amp,    16 GiB ModularExp peak  (won't fit)
 //
 // 26 is one step above the 25-qubit thesis target -- a single qubit
-// of headroom for ad-hoc experimentation, with the cohabitation
-// margin still ~8x of free RAM. Going higher would advertise a
-// construction that the OS allocator can refuse mid-run, which would
-// surface as a runtime panic from make() rather than a clean error
-// from NewQreg -- exactly the API smell §4.4 is set up to avoid.
+// of headroom for ad-hoc experimentation. 2 GiB peak working set
+// against 16 GiB total physical RAM leaves the rest (~14 GiB minus
+// the OS, the Go runtime, and whatever the user has open) free for
+// cohabitation; even with a heavy IDE and a browser there is room
+// to spare. Going higher would advertise a construction that the
+// OS allocator can refuse mid-run, surfacing as a runtime panic
+// from make() rather than a clean error from NewQreg -- exactly
+// the API smell §4.4 is set up to avoid.
 //
 // (Diverges from /c's QREG_MAX_QUBITS=60. /c uses 60 as a defensive
 // shift-overflow bound on size_t; Go hits the OS allocator long
@@ -303,11 +306,13 @@ call site.
 ### 4.4 Validation and bounds
 
 `QregMaxQubits = 26` -- rationale at the constant's definition in
-§4. The ceiling is sized to what `NewQreg` can reliably succeed on a
-16 GiB laptop alongside the OS and Go runtime: 1 GiB amp slice, 2 GiB
-ModularExp peak, ~8x cohabitation headroom. Diverges deliberately
-from `/c`'s 60 (which is a shift-overflow bound, not an allocation
-bound). Validation falls into two layers, and they deliberately use
+§4. The ceiling is sized to what `NewQreg` can reliably succeed on
+a 16 GiB laptop alongside the OS and Go runtime: 1 GiB amp slice,
+2 GiB ModularExp peak working set, leaving the remaining ~14 GiB
+of physical RAM (minus whatever the OS and the user's other tools
+occupy) free for cohabitation. Diverges deliberately from `/c`'s
+60 (which is a shift-overflow bound, not an allocation bound).
+Validation falls into two layers, and they deliberately use
 different mechanisms:
 
 * **Construction errors** -- bad `nQubits` argument to `NewQreg` --
@@ -941,20 +946,28 @@ approved at v1. Subsequent rounds revised the written form:
   §8.2 CLI recover narrowed to "main-goroutine panics only --
   worker-goroutine panics crash via Go default and also exit
   non-zero".
-* Round 6 (current): `QregMaxQubits` further dropped 30 -> 26.
-  Round 5's 30 sized the ceiling to "biggest slice make() can
-  allocate in isolation," but on a 16 GiB laptop cohabiting with
-  the OS, the Go runtime, and an IDE/browser, `NewQreg(30)` would
-  still OOM at runtime rather than return a clean error. 26 sizes
-  the ceiling to what `NewQreg` can reliably succeed on the laptop
-  target: 1 GiB amp + 2 GiB ModularExp peak, ~8x cohabitation
-  headroom. §9.3 performance targets reworded to make "25 = intended
-  operating point" (where the perf numbers apply) and "26 = ad-hoc
-  headroom, not routinely benchmarked" explicit. Wording cleanup:
-  "qreg lifecycle" (which implied /c-style create+destroy parity)
+* Round 6: `QregMaxQubits` further dropped 30 -> 26. Round 5's 30
+  sized the ceiling to "biggest slice make() can allocate in
+  isolation," but on a 16 GiB laptop cohabiting with the OS, the Go
+  runtime, and an IDE/browser, `NewQreg(30)` would still OOM at
+  runtime rather than return a clean error. 26 sizes the ceiling
+  to what `NewQreg` can reliably succeed on the laptop target:
+  1 GiB amp slice, 2 GiB ModularExp peak working set, leaving ~14
+  GiB of physical RAM for the OS and the user's other tools. §9.3
+  performance targets reworded to make "25 = intended operating
+  point" (where the perf numbers apply) and "26 = ad-hoc headroom,
+  not routinely benchmarked" explicit. Wording cleanup: "qreg
+  lifecycle" (which implied /c-style create+destroy parity)
   replaced with "register construction and operations" / "register
   construction and state management" in §1 and §9.1; the §4.2 note
   that Go intentionally has no `Destroy` is now cross-referenced.
+* Round 7 (current): MiB/GB unit consistency (§2 target-scale row
+  uses MiB to match the §4 memory table; §1 "16 GB laptop" -> "16
+  GiB laptop"). "~8x cohabitation headroom" -- which left it
+  ambiguous what the multiplier was over -- replaced with the
+  concrete "2 GiB peak vs 16 GiB total physical RAM, leaving ~14
+  GiB for OS/runtime/tools" both at the `QregMaxQubits` constant
+  comment and in the §4.4 mirror sentence.
 
 Awaiting user re-approval before transitioning to the implementation
 plan via the writing-plans skill.
