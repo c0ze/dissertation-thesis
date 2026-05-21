@@ -33,12 +33,12 @@ mkdir -p implementation/go/qubit implementation/go/cmd/qubit
 - [ ] **Step 2: Write `implementation/go/go.mod`**
 
 ```
-module github.com/arda-karaduman/thesis-go
+module github.com/c0ze/dissertation-thesis/implementation/go
 
 go 1.21
 ```
 
-(The module path is invented — there's no actual GitHub repo to publish to, and no external deps will import this code. It just needs to be a valid path so `go build` accepts it.)
+(The module path matches the public GitHub repo at github.com/c0ze/dissertation-thesis; the trailing `implementation/go` segment is the path inside that repo. This lets external users `go install github.com/c0ze/dissertation-thesis/implementation/go/cmd/qubit@latest` cleanly.)
 
 - [ ] **Step 3: Write `implementation/go/.gitignore`**
 
@@ -282,7 +282,7 @@ Expected: no output (the qubit package builds; cmd/qubit is still empty so its t
 - [ ] **Step 3: Verify `make test` runs and passes (only assert tests so far)**
 
 Run: `cd implementation/go && make test`
-Expected: `ok  github.com/arda-karaduman/thesis-go/qubit` line for the assert tests.
+Expected: `ok  github.com/c0ze/dissertation-thesis/implementation/go/qubit` line for the assert tests.
 
 - [ ] **Step 4: Commit**
 
@@ -549,6 +549,7 @@ func TestModPow(t *testing.T) {
 		{2, 1<<10, 1000000007, 812734592},     // mod within uint32
 		{1<<32 + 1, 5, 1<<33 - 1, 5100273671}, // mod over uint32
 		{5, 3, 1, 0},                          // mod == 1 short-circuit
+		{5, 3, 0, 0},                          // mod == 0 guard (matches MulMod)
 	}
 	for _, c := range cases {
 		got := ModPow(c.base, c.exp, c.mod)
@@ -571,8 +572,14 @@ Append to `standart.go`:
 ```go
 // ModPow returns base^exp mod mod using square-and-multiply over MulMod.
 // 0^0 conventionally returns 1.
+//
+// Defensive guards (mod == 0 returning 0; mod == 1 returning 0) mirror
+// MulMod's policy so the two helpers behave consistently on degenerate
+// input. Shor's period finder never calls with mod < 2 (precondition
+// N >= 2 is asserted at apply_modular_exp), so these branches only
+// matter to direct callers of ModPow.
 func ModPow(base, exp, mod uint64) uint64 {
-	if mod == 1 {
+	if mod == 0 || mod == 1 {
 		return 0
 	}
 	result := uint64(1)
@@ -644,6 +651,13 @@ func TestContinuedFraction(t *testing.T) {
 	if num != 7 || den != 5 {
 		t.Errorf("ContinuedFraction(sqrt(2), 10) = %d/%d, want 7/5", num, den)
 	}
+	// maxDenom < 1: no valid denominator exists. Should return (0, 1)
+	// rather than the (1, 0) escape that would otherwise come out of
+	// the kNew > maxDenom branch with k1 still at its zero initial.
+	num, den = ContinuedFraction(0.5, 0)
+	if num != 0 || den != 1 {
+		t.Errorf("ContinuedFraction(0.5, 0) = %d/%d, want 0/1", num, den)
+	}
 }
 
 func TestIsPowerOfTwo(t *testing.T) {
@@ -688,8 +702,12 @@ Append to `standart.go`:
 // ContinuedFraction approximates x by num/den with den <= maxDenom,
 // using the standard continued-fraction expansion. Used by Shor's
 // period finder to recover r from the QFT readout c/2^t.
+//
+// Returns (0, 1) on degenerate inputs: x <= 0 (Shor's c=0 readout
+// case) or maxDenom < 1 (no valid denominator exists, so we return
+// the trivial fraction rather than a 1/0 escape).
 func ContinuedFraction(x float64, maxDenom uint64) (num, den uint64) {
-	if x <= 0 {
+	if x <= 0 || maxDenom < 1 {
 		return 0, 1
 	}
 	var (
@@ -3256,7 +3274,7 @@ import (
 	"math"
 	"os"
 
-	"github.com/arda-karaduman/thesis-go/qubit"
+	"github.com/c0ze/dissertation-thesis/implementation/go/qubit"
 )
 
 func main() {
@@ -3395,7 +3413,7 @@ make demo ALGO=bell  # run the Bell-state demo
 ## API at a glance
 
 ```go
-import "github.com/arda-karaduman/thesis-go/qubit"
+import "github.com/c0ze/dissertation-thesis/implementation/go/qubit"
 
 q, err := qubit.NewQreg(4, qubit.WithSeed(42), qubit.WithWorkers(4))
 if err != nil { /* nQubits out of [1, QregMaxQubits] */ }
@@ -3655,7 +3673,7 @@ Expected: no output.
 - [ ] **Step 3: `make test`**
 
 Run: `cd implementation/go && make test`
-Expected: `ok  github.com/arda-karaduman/thesis-go/qubit  <duration>` and a similar line for `cmd/qubit` if it has tests (it doesn't here, so the cmd line will say `[no test files]` -- that's fine).
+Expected: `ok  github.com/c0ze/dissertation-thesis/implementation/go/qubit  <duration>` and a similar line for `cmd/qubit` if it has tests (it doesn't here, so the cmd line will say `[no test files]` -- that's fine).
 
 - [ ] **Step 4: `make test-race`**
 

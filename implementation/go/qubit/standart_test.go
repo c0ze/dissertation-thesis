@@ -54,6 +54,13 @@ func TestContinuedFraction(t *testing.T) {
 	if num != 7 || den != 5 {
 		t.Errorf("ContinuedFraction(sqrt(2), 10) = %d/%d, want 7/5", num, den)
 	}
+	// maxDenom < 1: no valid denominator exists. Should return (0, 1)
+	// rather than the (1, 0) escape that would otherwise come out of
+	// the kNew > maxDenom branch with k1 still at its zero initial.
+	num, den = ContinuedFraction(0.5, 0)
+	if num != 0 || den != 1 {
+		t.Errorf("ContinuedFraction(0.5, 0) = %d/%d, want 0/1", num, den)
+	}
 }
 
 func TestIsPowerOfTwo(t *testing.T) {
@@ -95,6 +102,7 @@ func TestModPow(t *testing.T) {
 		{2, 1 << 10, 1000000007, 812734592},   // mod within uint32
 		{1<<32 + 1, 5, 1<<33 - 1, 5100273671}, // mod over uint32
 		{5, 3, 1, 0},                          // mod == 1 short-circuit
+		{5, 3, 0, 0},                          // mod == 0 guard (matches MulMod)
 	}
 	for _, c := range cases {
 		got := ModPow(c.base, c.exp, c.mod)

@@ -44,8 +44,14 @@ func MulMod(a, b, mod uint64) uint64 {
 
 // ModPow returns base^exp mod mod using square-and-multiply over MulMod.
 // 0^0 conventionally returns 1.
+//
+// Defensive guards (mod == 0 returning 0; mod == 1 returning 0) mirror
+// MulMod's policy so the two helpers behave consistently on degenerate
+// input. Shor's period finder never calls with mod < 2 (precondition
+// N >= 2 is asserted at apply_modular_exp), so these branches only
+// matter to direct callers of ModPow.
 func ModPow(base, exp, mod uint64) uint64 {
-	if mod == 1 {
+	if mod == 0 || mod == 1 {
 		return 0
 	}
 	result := uint64(1)
@@ -63,8 +69,12 @@ func ModPow(base, exp, mod uint64) uint64 {
 // ContinuedFraction approximates x by num/den with den <= maxDenom,
 // using the standard continued-fraction expansion. Used by Shor's
 // period finder to recover r from the QFT readout c/2^t.
+//
+// Returns (0, 1) on degenerate inputs: x <= 0 (Shor's c=0 readout
+// case) or maxDenom < 1 (no valid denominator exists, so we return
+// the trivial fraction rather than a 1/0 escape).
 func ContinuedFraction(x float64, maxDenom uint64) (num, den uint64) {
-	if x <= 0 {
+	if x <= 0 || maxDenom < 1 {
 		return 0, 1
 	}
 	var (
