@@ -77,16 +77,37 @@ def measure_qubit(q: Qreg, target: int) -> int:
         (slice_1.real * slice_1.real + slice_1.imag * slice_1.imag).sum().item()
     )
 
+    # Guard zero-norm states (e.g. a fresh Qreg before init_basis) up
+    # front, so the sampling step below cannot pick a zero-probability
+    # branch and divide by sqrt(0) at the renormalisation step.
+    total = p0 + p1
+    if total <= 0:
+        raise RuntimeError(
+            f"qubit: measure_qubit: total probability {total:.6g} <= 0; "
+            f"the state has not been initialised or has drifted from "
+            f"normalisation (check q.norm())"
+        )
+
     # CPU random draw; q._gen is the per-Qreg CPU generator from Phase 0+1.
+    # Sample against the normalised CDF p0/total so an artificially scaled
+    # (or slightly drifted) state still produces an unbiased outcome:
+    # plain `u < p0` would silently misbehave for any state where
+    # p0 + p1 != 1 (the obvious case is a scaled state with p0 = p1 = 2
+    # where the un-normalised comparison u < 2 is always True).
     u = float(torch.rand((), generator=q._gen).item())
-    outcome = 0 if u < p0 else 1
+    outcome = 0 if u < (p0 / total) else 1
     p_outcome = p0 if outcome == 0 else p1
 
+    # Given total > 0 above, the chosen-branch probability is itself > 0
+    # because `u < p0/total` cannot be True when p0 == 0 (the CDF cut
+    # would be 0 and u is in [0, 1)), and likewise outcome cannot be 1
+    # when p1 == 0 (the CDF cut would be 1.0 and u < 1.0 is always True).
+    # The check below is defence in depth for floating-point oddities.
     if p_outcome <= 0:
         raise RuntimeError(
             f"qubit: measure_qubit: outcome={outcome} sampled with "
-            f"p_outcome={p_outcome:.6g} <= 0; the state has drifted "
-            f"from normalisation (call q.norm() to confirm)"
+            f"p_outcome={p_outcome:.6g} <= 0; this should not happen "
+            f"given total={total:.6g} > 0 (numerical edge case)"
         )
 
     inv_norm = 1.0 / math.sqrt(p_outcome)
@@ -123,8 +144,19 @@ def measure_all(q: Qreg) -> int:
     # Real-valued probability vector on device, then one .cpu() sync
     # so multinomial can pull a sample using q._gen (CPU generator).
     # multinomial accepts non-normalised weights -- it renormalises
-    # internally -- so we don't need to assert sum == 1 here.
+    # internally -- so we don't pre-normalise here, but we DO catch
+    # the zero-norm case before calling multinomial: otherwise
+    # torch.multinomial raises a raw RuntimeError without the
+    # "qubit: " prefix, leaking a generic torch error to callers.
     probs = (amp.real * amp.real + amp.imag * amp.imag).detach().cpu()
+    total = float(probs.sum().item())
+    if total <= 0:
+        raise RuntimeError(
+            f"qubit: measure_all: total probability {total:.6g} <= 0; "
+            f"the state has not been initialised or has drifted from "
+            f"normalisation (check q.norm())"
+        )
+
     chosen = int(torch.multinomial(probs, 1, generator=q._gen).item())
 
     # Collapse on device: zero everything, set the chosen index to 1+0j.

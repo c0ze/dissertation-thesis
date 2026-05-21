@@ -106,6 +106,43 @@ def test_measure_qubit_rejects_negative() -> None:
         measure_qubit(q, -1)
 
 
+def test_measure_qubit_raises_qubit_prefix_on_zero_norm() -> None:
+    # A fresh Qreg has an all-zero amplitude vector (init_basis hasn't
+    # been called). measure_qubit must raise a "qubit:"-prefixed
+    # RuntimeError rather than crashing with a bare math error or
+    # producing an unbiased result.
+    q = Qreg(2, device="cpu")
+    with pytest.raises(
+        RuntimeError, match=r"^qubit: measure_qubit: total probability"
+    ):
+        measure_qubit(q, 0)
+
+
+def test_measure_qubit_handles_unnormalised_state() -> None:
+    # Hand-scale H|0> by a factor of 2 so |amp|^2 sums to 4 rather than 1.
+    # The sampling step must use p0/total (not the raw p0), and the
+    # post-collapse state must still be unit-norm. Old code with the
+    # un-normalised `u < p0` comparison would always pick outcome=0 here
+    # because u in [0, 1) is always < p0=2.
+    q = Qreg(1, device="cpu", seed=42)
+    q.init_basis(0)
+    apply_h(q, 0)
+    q._amp.mul_(2.0)
+    # Pre-condition: state is scaled to norm 4.
+    assert q.norm() == pytest.approx(4.0, abs=prob_tol_for(q.dtype))
+    outcome = measure_qubit(q, 0)
+    assert outcome in (0, 1)
+    # Post-condition: collapse to a basis state with unit norm.
+    assert q.norm() == pytest.approx(1.0, abs=prob_tol_for(q.dtype))
+    tol = amp_tol_for(q.dtype)
+    if outcome == 0:
+        assert q.amplitude(0) == pytest.approx(1 + 0j, abs=tol)
+        assert q.amplitude(1) == pytest.approx(0 + 0j, abs=tol)
+    else:
+        assert q.amplitude(0) == pytest.approx(0 + 0j, abs=tol)
+        assert q.amplitude(1) == pytest.approx(1 + 0j, abs=tol)
+
+
 # ===========================================================================
 # measure_all
 # ===========================================================================
@@ -129,6 +166,17 @@ def test_measure_all_collapses_to_chosen_basis() -> None:
         expected = 1 + 0j if i == chosen else 0 + 0j
         assert q.amplitude(i) == pytest.approx(expected, abs=tol)
     assert q.norm() == pytest.approx(1.0, abs=prob_tol_for(q.dtype))
+
+
+def test_measure_all_raises_qubit_prefix_on_zero_norm() -> None:
+    # A fresh Qreg with no init_basis has all-zero amplitudes. Calling
+    # measure_all must raise a "qubit:"-prefixed RuntimeError rather
+    # than leaking torch.multinomial's bare RuntimeError.
+    q = Qreg(2, device="cpu")
+    with pytest.raises(
+        RuntimeError, match=r"^qubit: measure_all: total probability"
+    ):
+        measure_all(q)
 
 
 def test_measure_all_distribution_on_uniform_superposition() -> None:
