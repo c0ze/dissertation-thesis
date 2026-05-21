@@ -63,3 +63,33 @@ func (q *Qreg) ApplyZ(target int) {
 		{0, -1},
 	})
 }
+
+// ApplyS applies the S gate (phase pi/2).
+//
+//	S = [[1, 0], [0, i]]
+func (q *Qreg) ApplyS(target int) {
+	q.ApplyU(target, [2][2]complex128{
+		{1, 0},
+		{0, complex(0, 1)},
+	})
+}
+
+// ApplyT applies the T gate (phase pi/4).
+//
+//	T = [[1, 0], [0, e^{i*pi/4}]]
+func (q *Qreg) ApplyT(target int) {
+	q.ApplyU(target, [2][2]complex128{
+		{1, 0},
+		{0, complex(math.Cos(math.Pi/4), math.Sin(math.Pi/4))},
+	})
+}
+
+// ApplyPhase applies the general phase gate.
+//
+//	Phase(theta) = [[1, 0], [0, e^{i*theta}]]
+func (q *Qreg) ApplyPhase(target int, theta float64) {
+	q.ApplyU(target, [2][2]complex128{
+		{1, 0},
+		{0, complex(math.Cos(theta), math.Sin(theta))},
+	})
+}

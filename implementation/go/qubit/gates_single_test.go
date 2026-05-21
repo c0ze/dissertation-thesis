@@ -62,3 +62,30 @@ func TestApplyYOnZero(t *testing.T) {
 	assertAmpNear(t, complex(0, 0), q.amp[0], "Y|0> amp[0]")
 	assertAmpNear(t, complex(0, 1), q.amp[1], "Y|0> amp[1]")
 }
+
+func TestApplyS_Squared_EqualsZ(t *testing.T) {
+	q, _ := NewQreg(1)
+	q.InitBasis(1)
+	q.ApplyS(0)
+	q.ApplyS(0)
+	// S^2 = Z, so amp[1] = -1
+	assertAmpNear(t, complex(-1, 0), q.amp[1], "S^2|1> amp[1]")
+}
+
+func TestApplyT_FourthPower_EqualsZ(t *testing.T) {
+	q, _ := NewQreg(1)
+	q.InitBasis(1)
+	q.ApplyT(0)
+	q.ApplyT(0)
+	q.ApplyT(0)
+	q.ApplyT(0)
+	// T^4 = Z, so amp[1] = -1
+	assertAmpNear(t, complex(-1, 0), q.amp[1], "T^4|1> amp[1]")
+}
+
+func TestApplyPhasePiEqualsZ(t *testing.T) {
+	q, _ := NewQreg(1)
+	q.InitBasis(1)
+	q.ApplyPhase(0, math.Pi)
+	assertAmpNear(t, complex(-1, 0), q.amp[1], "Phase(pi)|1> amp[1]")
+}
