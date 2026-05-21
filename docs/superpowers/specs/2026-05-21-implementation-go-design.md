@@ -1,7 +1,7 @@
 # Design: implementation/go --- goroutine-parallel quantum simulator
 
 **Date:** 2026-05-21
-**Status:** Round-5 revision applied (QregMaxQubits=30, options infallible, explicit concurrency contract, dispatcher wording, narrowed CLI recover). Awaiting written spec review.
+**Status:** Round-6 revision applied (QregMaxQubits 30→26 for laptop-realistic ceiling; perf targets split "25=operating point" from "26=headroom"; "qreg lifecycle" wording dropped where it implied /c-style create+destroy parity). Awaiting written spec review.
 **Owner:** Arda Karaduman
 **Author of this doc:** Claude
 
@@ -9,7 +9,8 @@
 
 Build a Go implementation of the sparse-gate quantum-circuit simulator at
 `implementation/go/`, covering the same thesis claims as `implementation/c/`
-(qreg lifecycle, all gates, measurement, QFT, Grover, Shor). Use Go's
+(register construction and operations, all gates, measurement, QFT,
+Grover, Shor). Use Go's
 goroutines for concurrency instead of MPI --- spawned per call from
 `parallelOverPairs`/`parallelOverIndices` and joined via
 `sync.WaitGroup`, no persistent pool to manage. Target 25 qubits
@@ -81,19 +82,32 @@ so the cross-implementation parallel is visually obvious.
 ## 4. Data model
 
 ```go
-// QregMaxQubits is the largest register the simulator will construct.
-// At 16 bytes per complex128 amplitude, 2^30 amplitudes is 16 GiB --
-// the entire RAM of the laptop target. ApplyModularExp transiently
-// doubles peak memory (old + new state vector, §5.5), so the
-// effective ceiling for Shor's algorithm on a 16 GiB machine is ~29
-// qubits. /c uses 60 here as a defensive shift-overflow bound; in Go,
-// where make([]complex128, n) for n above ~2^30 OOMs anyway, surfacing
-// 60 as the public ceiling would be a lie -- NewQreg(60) would try to
-// allocate 16 EiB and fail at the OS-allocator boundary with a runtime
-// panic rather than a clean recoverable error. 30 keeps the documented
-// limit honest. (Tests never approach this ceiling; the largest
+// QregMaxQubits is the public construction ceiling. It is sized to
+// what NewQreg can reliably succeed on a 16 GiB laptop alongside the
+// OS, the Go runtime, and a typical IDE/browser footprint -- not to
+// the theoretical bit-shift bound (which would be ~62) nor to the
+// "biggest slice make() will accept in isolation" (which would be
+// ~30). At 16 bytes per complex128 amplitude:
+//
+//     n=25 -> 512 MiB amp,   1 GiB ModularExp peak  (thesis target)
+//     n=26 -> 1 GiB amp,     2 GiB ModularExp peak  (this ceiling)
+//     n=27 -> 2 GiB amp,     4 GiB ModularExp peak
+//     n=28 -> 4 GiB amp,     8 GiB ModularExp peak  (cohabiting risk)
+//     n=29 -> 8 GiB amp,    16 GiB ModularExp peak  (won't fit)
+//
+// 26 is one step above the 25-qubit thesis target -- a single qubit
+// of headroom for ad-hoc experimentation, with the cohabitation
+// margin still ~8x of free RAM. Going higher would advertise a
+// construction that the OS allocator can refuse mid-run, which would
+// surface as a runtime panic from make() rather than a clean error
+// from NewQreg -- exactly the API smell §4.4 is set up to avoid.
+//
+// (Diverges from /c's QREG_MAX_QUBITS=60. /c uses 60 as a defensive
+// shift-overflow bound on size_t; Go hits the OS allocator long
+// before that, so surfacing 60 as the public ceiling would be
+// fiction. Tests never approach this ceiling either way; the largest
 // register the test suite builds is the 16-qubit Shor-21 register.)
-const QregMaxQubits = 30
+const QregMaxQubits = 26
 
 type Qreg struct {
     amp     []complex128   // contiguous state vector, len = 1 << nQubits
@@ -288,12 +302,13 @@ call site.
 
 ### 4.4 Validation and bounds
 
-`QregMaxQubits = 30` -- rationale at the constant's definition in
-§4. Diverges deliberately from `/c`'s 60: in Go, advertising 60 means
-`NewQreg(60)` would try to allocate 16 EiB, which is fiction. 30
-matches the laptop memory ceiling (16 GiB at 16 B per amplitude).
-Validation falls into two layers, and they deliberately use different
-mechanisms:
+`QregMaxQubits = 26` -- rationale at the constant's definition in
+§4. The ceiling is sized to what `NewQreg` can reliably succeed on a
+16 GiB laptop alongside the OS and Go runtime: 1 GiB amp slice, 2 GiB
+ModularExp peak, ~8x cohabitation headroom. Diverges deliberately
+from `/c`'s 60 (which is a shift-overflow bound, not an allocation
+bound). Validation falls into two layers, and they deliberately use
+different mechanisms:
 
 * **Construction errors** -- bad `nQubits` argument to `NewQreg` --
   return `error`. The caller picked the value, so they get a
@@ -841,9 +856,10 @@ pattern.
 
 ### 9.1 In v1
 
-All entries in `/c`'s spec §9.1: qreg lifecycle, every single- and
-two-qubit gate, multi-controlled-Z/X, measurement (full/qubit/sampling),
-QFT + inverse, Grover with oracle callback, Shor (ModularExp,
+All entries in `/c`'s spec §9.1: register construction and state
+management (no `Destroy` -- see §4.2), every single- and two-qubit
+gate, multi-controlled-Z/X, measurement (full/qubit/sampling), QFT
++ inverse, Grover with oracle callback, Shor (ModularExp,
 ShorPeriod, ShorFactor), the qubit.c-equivalent demo.
 
 ### 9.2 Explicitly out
@@ -858,14 +874,24 @@ ShorPeriod, ShorFactor), the qubit.c-equivalent demo.
 
 ### 9.3 Performance targets
 
-* 25 qubits in <2 s per Shor-period round on Apple Silicon /
-  comparable.
+**25 qubits is the intended operating point.** The performance
+numbers below are calibrated for that size. `QregMaxQubits = 26`
+exists to give a single qubit of ad-hoc headroom (§4); it is
+**not** a routinely benchmarked configuration, and timings at 26 are
+allowed to be ~2x worse than at 25 without that counting as a
+regression.
+
+At the 25-qubit operating point:
+
+* Shor-period round in <2 s on Apple Silicon / comparable.
 * 20-qubit Grover with one marked item in <100 ms.
 * QFT on 25 qubits with full bit-reversal in <500 ms.
 
 Not pass/fail gates; sanity-check numbers for the README. The Go
 implementation is allowed to be ~2x slower than `/c` at NP=1 since it
-trades raw throughput for goroutine-friendly code organisation.
+trades raw throughput for goroutine-friendly code organisation. The
+26-qubit ceiling exists for headroom, not benchmarking; the test
+suite never builds a register above 16 qubits.
 
 ## 10. Coverage tracking
 
@@ -904,17 +930,31 @@ approved at v1. Subsequent rounds revised the written form:
   `SeedRNG` test-mutator with functional options `WithSeed` /
   `WithWorkers` at `NewQreg`. Semantic parity with `/c` preserved;
   the changes are purely API/lifecycle/error-handling.
-* Round 5 (current): `QregMaxQubits` dropped from 60 to 30 so the
-  documented ceiling matches what `make([]complex128, 1<<n)` can
-  actually allocate on the laptop target; option-error policy
-  contradiction resolved (options stay infallible in v1, the type
-  remains `func(*Qreg)`, `NewQreg`'s `error` return is reserved for
-  the `nQubits` check); explicit "Qreg is not safe for concurrent
-  method calls" contract added to §4; §7.3 wording updated from
-  "race in the worker pool" to "race in the dispatcher or gate
-  closures"; §8.2 CLI recover narrowed to "main-goroutine panics
-  only -- worker-goroutine panics crash via Go default and also
-  exit non-zero".
+* Round 5: `QregMaxQubits` dropped from 60 to 30 so the documented
+  ceiling matches what `make([]complex128, 1<<n)` can actually
+  allocate on the laptop target; option-error policy contradiction
+  resolved (options stay infallible in v1, the type remains
+  `func(*Qreg)`, `NewQreg`'s `error` return is reserved for the
+  `nQubits` check); explicit "Qreg is not safe for concurrent method
+  calls" contract added to §4; §7.3 wording updated from "race in
+  the worker pool" to "race in the dispatcher or gate closures";
+  §8.2 CLI recover narrowed to "main-goroutine panics only --
+  worker-goroutine panics crash via Go default and also exit
+  non-zero".
+* Round 6 (current): `QregMaxQubits` further dropped 30 -> 26.
+  Round 5's 30 sized the ceiling to "biggest slice make() can
+  allocate in isolation," but on a 16 GiB laptop cohabiting with
+  the OS, the Go runtime, and an IDE/browser, `NewQreg(30)` would
+  still OOM at runtime rather than return a clean error. 26 sizes
+  the ceiling to what `NewQreg` can reliably succeed on the laptop
+  target: 1 GiB amp + 2 GiB ModularExp peak, ~8x cohabitation
+  headroom. §9.3 performance targets reworded to make "25 = intended
+  operating point" (where the perf numbers apply) and "26 = ad-hoc
+  headroom, not routinely benchmarked" explicit. Wording cleanup:
+  "qreg lifecycle" (which implied /c-style create+destroy parity)
+  replaced with "register construction and operations" / "register
+  construction and state management" in §1 and §9.1; the §4.2 note
+  that Go intentionally has no `Destroy` is now cross-referenced.
 
 Awaiting user re-approval before transitioning to the implementation
 plan via the writing-plans skill.
