@@ -1,6 +1,9 @@
 package qubit
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestModularExpPassThroughYGeN(t *testing.T) {
 	// Layout: 6 total qubits = 1 counting + 5 target. counting at
@@ -67,5 +70,27 @@ func TestShorFactor15Repeated(t *testing.T) {
 			t.Errorf("trial %d: ShorFactor(15) = (%d, %d), want (3,5) or (5,3)",
 				trial, res.P, res.Q)
 		}
+	}
+}
+
+func TestShorPeriodA2Mod21(t *testing.T) {
+	if os.Getenv("RUN_SHOR_21") == "" {
+		t.Skip("set RUN_SHOR_21=1 to run the 16-qubit Shor-21 period test")
+	}
+	// True period of 2 mod 21 is 6 (2, 4, 8, 16, 11, 1). Continued
+	// fraction therefore lands in {1, 2, 3, 6}. Test fixes a=2 to
+	// remove random base-selection.
+	n := 5
+	tBits := 11
+	q, _ := NewQreg(tBits+n, WithSeed(1))
+	res := q.ApplyShorPeriod(n, tBits, 0, n, 2, 21)
+	if res.R == 0 {
+		t.Fatalf("Shor-21: period finder returned r=0")
+	}
+	switch res.R {
+	case 1, 2, 3, 6:
+		// pass
+	default:
+		t.Errorf("Shor-21: r=%d not a divisor of 6", res.R)
 	}
 }
