@@ -460,7 +460,7 @@ func TestMulMod(t *testing.T) {
 	}{
 		{0, 5, 7, 0},
 		{3, 4, 7, 5},        // 12 mod 7 = 5
-		{1234567, 7654321, 1000000007, 794544905},
+		{1234567, 7654321, 1000000007, 772047864},
 		{1 << 40, 1 << 40, 1 << 50, 0},      // exact-power-of-2 case
 	}
 	for _, c := range cases {
@@ -544,8 +544,8 @@ func TestModPow(t *testing.T) {
 		{2, 10, 1000, 24},
 		{7, 0, 15, 1},
 		{0, 0, 7, 1},
-		{2, 1<<10, 1000000007, 11489},     // mod within uint32
-		{1<<32 + 1, 5, 1<<33 - 1, 31},     // mod over uint32
+		{2, 1<<10, 1000000007, 812734592},     // mod within uint32
+		{1<<32 + 1, 5, 1<<33 - 1, 5100273671}, // mod over uint32
 	}
 	for _, c := range cases {
 		got := ModPow(c.base, c.exp, c.mod)
