@@ -58,12 +58,22 @@ static void test_shor_period_a7_mod15(void) {
     qreg_destroy(q);
 }
 
+static void test_shor_factor_15(void) {
+    shor_factor_result r = shor_factor(15, /*max_attempts=*/8);
+    TEST_ASSERT_TRUE_MESSAGE(r.p != 0 && r.q != 0,
+        "shor_factor(15) failed after 8 attempts");
+    TEST_ASSERT_EQUAL_UINT64(15ULL, r.p * r.q);
+    TEST_ASSERT_TRUE(r.p > 1 && r.q > 1);
+    TEST_ASSERT_TRUE(r.p == 3 || r.p == 5);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
     RUN_TEST(test_modular_exp_passes_through_y_ge_N);
     RUN_TEST(test_modular_exp_maps_within_ring);
     RUN_TEST(test_shor_period_a7_mod15);
+    RUN_TEST(test_shor_factor_15);
 }
 
 TEST_RUNNER_MAIN()
