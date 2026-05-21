@@ -49,9 +49,9 @@ NPS_LARGE  := 1 2 4 8
 # Unity vendored.
 UNITY_OBJ  := $(BUILDDIR)/unity.o
 
-.PHONY: all test test-large clean distclean dirs
+.PHONY: all test test-large clean distclean dirs demo
 
-all: dirs
+all: dirs $(BINDIR)/qubit
 
 dirs:
 	@mkdir -p $(BUILDDIR) $(BINDIR) $(TESTDIR)
@@ -82,6 +82,19 @@ test: $(TEST_BINS)
 test-large: $(TEST_BINS)
 	$(foreach bin,$(TEST_BINS),$(foreach np,$(NPS_LARGE),$(call run_test_at_np,$(bin),$(np))))
 	@echo "OK: all tests passed at NP=$(NPS_LARGE)"
+
+# Demo binary.
+DEMO_OBJ := $(BUILDDIR)/qubit.o
+$(DEMO_OBJ): qubit.c $(LIB_OBJS) | dirs
+	$(MPICC) $(CFLAGS) -I. -c $< -o $@
+$(BINDIR)/qubit: $(DEMO_OBJ) $(LIB_OBJS)
+	$(MPICC) $(CFLAGS) $(DEMO_OBJ) $(LIB_OBJS) $(LDFLAGS) -o $@
+
+# make demo ALGO=qft NP=4
+ALGO ?= bell
+NP   ?= 4
+demo: $(BINDIR)/qubit
+	mpirun --oversubscribe -n $(NP) $(BINDIR)/qubit --algo $(ALGO)
 
 clean:
 	rm -rf $(BUILDDIR)
