@@ -311,7 +311,7 @@ Write `implementation/c/makefile`:
 # Targets:
 #   make                 build libqubit.a (when sources exist) and bin/qubit
 #   make test            build and run every tests/test_*.c at NP=1, 2, 4
-#   make test-large      additionally run at NP=8 (Shor-21 etc.)
+#   make test-large      reruns the existing suite at NP=8
 #   make demo ALGO=qft NP=4
 #   make clean / distclean
 #
@@ -3230,10 +3230,13 @@ int measure_qubit(qreg *q, int target) {
     }
     double p0 = 0.0;
     MPI_Allreduce(&local_p0, &p0, 1, MPI_DOUBLE, MPI_SUM, q->comm);
-    /* 2. Rank 0 samples; broadcast the outcome. */
+    /* 2. Rank 0 samples; broadcast the outcome.
+     *    Use (RAND_MAX + 1.0) so u lies in [0, 1) -- otherwise u==1.0
+     *    with p0==1 would pick the impossible outcome=1 branch and
+     *    renormalise by 1/sqrt(0).                                    */
     int outcome = 0;
     if (q->rank == 0) {
-        double u = (double)rand() / (double)RAND_MAX;
+        double u = (double)rand() / ((double)RAND_MAX + 1.0);
         outcome = (u < p0) ? 0 : 1;
     }
     MPI_Bcast(&outcome, 1, MPI_INT, 0, q->comm);
@@ -3370,8 +3373,11 @@ size_t measure_all(qreg *q) {
     double prefix = 0.0;
     MPI_Exscan(&local_total, &prefix, 1, MPI_DOUBLE, MPI_SUM, q->comm);
     if (q->rank == 0) prefix = 0.0;
+    /* u must lie in [0, 1) -- (RAND_MAX + 1.0) prevents u==1.0, which
+     * would fall outside every rank's cumulative interval and leave
+     * chosen_rank==-1, then make MPI_Bcast(..., root=-1, ...) UB.    */
     double u = 0.0;
-    if (q->rank == 0) u = (double)rand() / (double)RAND_MAX;
+    if (q->rank == 0) u = (double)rand() / ((double)RAND_MAX + 1.0);
     MPI_Bcast(&u, 1, MPI_DOUBLE, 0, q->comm);
 
     size_t chosen_global = 0;
@@ -4954,13 +4960,19 @@ Write `implementation/c/qubit.c`:
 #include "grover.h"
 #include "shor.h"
 
+/* NOTE: prob_of is collective (MPI_Allreduce internally). Every rank
+ * must call it; only rank 0 prints. The earlier draft of these demos
+ * called prob_of inside `if (rank == 0)`, which would deadlock at
+ * NP > 1 because the other ranks would skip the Allreduce. The form
+ * below (compute on every rank, gate the printf) is what shipped.    */
 static void demo_bell(int rank) {
     qreg *q = qreg_create(2, MPI_COMM_WORLD);
     qreg_init_basis(q, 0);
     apply_h(q, 0);
     apply_cnot(q, 0, 1);
+    double p00 = prob_of(q, 0), p11 = prob_of(q, 3);
     if (rank == 0) printf("Bell |Phi+>: prob_of(|00>)=%.4f  prob_of(|11>)=%.4f\n",
-                          prob_of(q, 0), prob_of(q, 3));
+                          p00, p11);
     qreg_destroy(q);
 }
 
@@ -4969,10 +4981,10 @@ static void demo_qft(int rank) {
     qreg *q = qreg_create(n, MPI_COMM_WORLD);
     qreg_init_basis(q, 0);
     apply_qft(q, 0, n);
-    if (rank == 0) {
-        printf("QFT|000>: every basis state has prob ~ 1/%d\n", 1 << n);
-        for (int i = 0; i < (1 << n); i++)
-            printf("  prob_of(|%d>)=%.4f\n", i, prob_of(q, i));
+    if (rank == 0) printf("QFT|000>: every basis state has prob ~ 1/%d\n", 1 << n);
+    for (int i = 0; i < (1 << n); i++) {
+        double p = prob_of(q, i);
+        if (rank == 0) printf("  prob_of(|%d>)=%.4f\n", i, p);
     }
     qreg_destroy(q);
 }
@@ -4989,9 +5001,10 @@ static void demo_grover(int rank) {
     qreg *q = qreg_create(n, MPI_COMM_WORLD);
     qreg_init_basis(q, 0);
     apply_grover(q, n, demo_oracle, NULL, 3);
+    double pm = prob_of(q, g_demo_marked);
     if (rank == 0)
         printf("Grover (N=%d, marked=%zu, 3 iters): prob_of(marked)=%.4f\n",
-               1 << n, g_demo_marked, prob_of(q, g_demo_marked));
+               1 << n, g_demo_marked, pm);
     qreg_destroy(q);
 }
 
@@ -5167,9 +5180,10 @@ the thesis in Task 41.
 
 ## Test matrix
 
-All test binaries pass at NP = 1, 2, 4 via `make test`, and additionally
-at NP = 8 via `make test-large` (Shor-21 case excluded from the standard
-run for runtime reasons).
+All test binaries pass at NP = 1, 2, 4 via `make test`. `make test-large`
+reruns the existing suite at NP=8; it does not currently add new test
+cases (an earlier draft of this matrix mentioned a Shor-21 case which
+was aspirational and not implemented in v1; left as future work).
 ```
 
 - [ ] **Step 2: Sanity check the file**
@@ -5234,7 +5248,7 @@ See:
 ```sh
 make            # builds libqubit objects + bin/qubit demo
 make test       # runs every tests/test_*.c at NP = 1, 2, 4
-make test-large # additionally NP = 8 (Shor-21 etc.)
+make test-large # reruns existing suite at NP = 8
 make demo ALGO=qft NP=4
 make clean
 ```
@@ -5250,11 +5264,15 @@ int main(int argc, char **argv) {
     qreg *q = qreg_create(3, MPI_COMM_WORLD);
     qreg_init_basis(q, 0);
     apply_qft(q, 0, 3);
-    /* prob_of(q, k) returns the same value on every rank.            */
     int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank == 0)
-        for (size_t i = 0; i < 8; i++)
-            printf("prob(|%zu>) = %.4f\n", i, prob_of(q, i));
+    /* prob_of is collective (MPI_Allreduce internally) -- every rank
+     * must call it. Print only on rank 0 to avoid duplicate output.
+     * The earlier draft of this example put the call inside the
+     * rank-0 guard, which deadlocks at NP > 1.                       */
+    for (size_t i = 0; i < 8; i++) {
+        double p = prob_of(q, i);
+        if (rank == 0) printf("prob(|%zu>) = %.4f\n", i, p);
+    }
     qreg_destroy(q);
     MPI_Finalize();
 }

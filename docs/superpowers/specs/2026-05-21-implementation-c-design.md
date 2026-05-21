@@ -489,7 +489,11 @@ asserts that exit code at NP=1, 2, 4 (and 8 under
 ### 7.4 Test runs
 
 `make test` runs each test executable at NP=1, 2, 4. Failure at any NP
-fails the suite. `make test-large` adds NP=8 plus the Shor-21 case.
+fails the suite. `make test-large` reruns the existing suite at NP=8.
+(An earlier draft of this section advertised a "Shor-21" case under
+test-large; that was aspirational and was not implemented in v1. See
+`implementation/c/assessment.md` for the canonical statement of
+coverage.)
 
 `make check` is preserved as a fast smoke test (Bell state preparation at
 NP=4) for parity with `/original`.
@@ -508,7 +512,7 @@ In `tests/test_assert.h`:
 ```
 make                  # libqubit.a + bin/qubit (single demo binary)
 make test             # builds tests, runs at NP=1, 2, 4
-make test-large       # additionally NP=8 + Shor-21
+make test-large       # reruns existing suite at NP=8
 make demo ALGO=qft NP=4
 make check            # quick smoke-test (Bell state at NP=4)
 make clean
