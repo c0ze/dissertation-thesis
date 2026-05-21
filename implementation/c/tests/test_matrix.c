@@ -120,6 +120,26 @@ static void test_apply_h_twice_is_identity(void) {
     qreg_destroy(q);
 }
 
+static void test_apply_h_on_global_qubit(void) {
+    /* Choose a register where qubit n-1 is always global for NP>=2. */
+    qreg *q = qreg_create(3, MPI_COMM_WORLD);
+    if (g_size == 1) { qreg_destroy(q); TEST_PASS(); return; }
+    int target = q->n_qubits - 1;     /* most-significant qubit */
+    TEST_ASSERT_FALSE(is_local_qubit(q, target));
+    qreg_init_basis(q, 0);
+    apply_h(q, target);
+    /* H on the top bit of |000>: state is (|000> + |100>) / sqrt(2). */
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.5, prob_of(q, 0));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.5, prob_of(q, 4));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.0, prob_of(q, 1));
+    ASSERT_NORM_ONE(q);
+    /* Apply H again - should return to |000>. */
+    apply_h(q, target);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 0));
+    ASSERT_NORM_ONE(q);
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -134,6 +154,7 @@ void register_tests(void) {
     RUN_TEST(test_prob_of_basis_state);
     RUN_TEST(test_apply_h_on_qubit0_from_basis0);
     RUN_TEST(test_apply_h_twice_is_identity);
+    RUN_TEST(test_apply_h_on_global_qubit);
 }
 
 TEST_RUNNER_MAIN()

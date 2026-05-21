@@ -92,15 +92,39 @@ static void apply_u_local(qreg *q, int target, complex double u[2][2]) {
     }
 }
 
+static void apply_u_global(qreg *q, int target, complex double u[2][2]) {
+    int   tbit    = target - (q->n_qubits - q->p);
+    int   mybit   = (q->rank >> tbit) & 1;
+    int   partner = q->rank ^ (1 << tbit);
+    complex double *buf = malloc(q->local_size * sizeof *buf);
+    exchange_amplitudes(q, partner, buf);
+    /* Combine our slice with the partner's slice. We hold the value of
+     * qubit `target` == mybit; partner held the opposite bit. The pair
+     * (a_mybit, a_{1-mybit}) corresponds to amplitude (q->amp[i], buf[i]).
+     */
+    if (mybit == 0) {
+        for (size_t i = 0; i < q->local_size; i++) {
+            complex double a0 = q->amp[i];
+            complex double a1 = buf[i];
+            q->amp[i] = u[0][0]*a0 + u[0][1]*a1;
+        }
+    } else {
+        for (size_t i = 0; i < q->local_size; i++) {
+            complex double a0 = buf[i];
+            complex double a1 = q->amp[i];
+            q->amp[i] = u[1][0]*a0 + u[1][1]*a1;
+        }
+    }
+    free(buf);
+}
+
 void apply_u(qreg *q, int target, complex double u[2][2]) {
     QREG_ASSERT(q != NULL, "apply_u: q is NULL");
     QREG_ASSERT(u != NULL, "apply_u: u is NULL");
     QREG_ASSERT(target >= 0 && target < q->n_qubits,
                 "apply_u: target out of range");
-    /* Global path lands in Task 18; for now require local. */
-    QREG_ASSERT(is_local_qubit(q, target),
-                "apply_u: global-qubit path not implemented yet");
-    apply_u_local(q, target, u);
+    if (is_local_qubit(q, target)) apply_u_local (q, target, u);
+    else                           apply_u_global(q, target, u);
 }
 
 void apply_h(qreg *q, int target) {
