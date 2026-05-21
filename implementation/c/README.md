@@ -1,5 +1,7 @@
 # implementation/c
 
+[![CI](https://github.com/c0ze/dissertation-thesis/actions/workflows/ci.yml/badge.svg)](https://github.com/c0ze/dissertation-thesis/actions/workflows/ci.yml)
+
 A sparse-gate, MPI-distributed quantum-circuit simulator written in C.
 Distributed from line one; the same binary runs single-process or across
 a multi-node cluster.

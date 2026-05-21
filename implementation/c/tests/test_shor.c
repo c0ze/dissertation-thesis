@@ -67,6 +67,55 @@ static void test_shor_factor_15(void) {
     TEST_ASSERT_TRUE(r.p == 3 || r.p == 5);
 }
 
+/* ---- CI-additions: orbit table, second a value, repeated factor ---- */
+
+static void test_modular_exp_orbit_a2_mod5(void) {
+    /* a=2, N=5: 2^0=1, 2^1=2, 2^2=4, 2^3=3 (mod 5). Place a unit
+     * amplitude at each (x, y=1) and verify it lands at (x, 2^x mod 5).*/
+    int counting_start = 0, t = 2;     /* x in [0..3]                  */
+    int target_start   = 2, n = 3;     /* y in [0..7] (>=5 reserved)    */
+    int n_total = 5;
+    uint64_t expected_y[4] = {1, 2, 4, 3};
+    for (int x = 0; x < 4; x++) {
+        qreg *q = qreg_create(n_total, MPI_COMM_WORLD);
+        size_t initial = ((size_t)1 << target_start) | ((size_t)x << counting_start);
+        qreg_init_basis(q, initial);
+        apply_modular_exp(q, counting_start, t, target_start, n, 2, 5);
+        size_t final = ((size_t)expected_y[x] << target_start)
+                     | ((size_t)x            << counting_start);
+        TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, final));
+        qreg_destroy(q);
+    }
+}
+
+static void test_shor_period_a4_mod15(void) {
+    /* Order of 4 mod 15 is 2 (4^2 = 16 = 1 mod 15). Smaller register:
+     * t=4 counting + n=4 target = 8 qubits. Continued-fraction
+     * recovery of r=2 is essentially certain at t=4 (2^4 = 16 >> r^2=4). */
+    int n = 4, t = 4;
+    qreg *q = qreg_create(t + n, MPI_COMM_WORLD);
+    shor_period_result res = apply_shor_period(q, /*cs=*/n, t, /*ts=*/0, n,
+                                               /*a=*/4, /*N=*/15);
+    TEST_ASSERT_TRUE_MESSAGE(res.r != 0, "period finder returned 0");
+    TEST_ASSERT_TRUE_MESSAGE(res.r == 2 || res.r == 1,
+        "expected recovered period to divide 2");
+    qreg_destroy(q);
+}
+
+static void test_shor_factor_15_repeated(void) {
+    /* Run shor_factor(15) several times; each run should succeed
+     * within 8 attempts and always return {3, 5} (in either order).
+     * Catches regressions where one of the period-finding paths
+     * silently breaks under a particular random a.                     */
+    for (int trial = 0; trial < 3; trial++) {
+        shor_factor_result r = shor_factor(15, /*max_attempts=*/8);
+        TEST_ASSERT_TRUE_MESSAGE(r.p != 0 && r.q != 0,
+            "shor_factor(15) failed within 8 attempts");
+        TEST_ASSERT_EQUAL_UINT64(15ULL, r.p * r.q);
+        TEST_ASSERT_TRUE((r.p == 3 && r.q == 5) || (r.p == 5 && r.q == 3));
+    }
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -74,6 +123,9 @@ void register_tests(void) {
     RUN_TEST(test_modular_exp_maps_within_ring);
     RUN_TEST(test_shor_period_a7_mod15);
     RUN_TEST(test_shor_factor_15);
+    RUN_TEST(test_modular_exp_orbit_a2_mod5);
+    RUN_TEST(test_shor_period_a4_mod15);
+    RUN_TEST(test_shor_factor_15_repeated);
 }
 
 TEST_RUNNER_MAIN()

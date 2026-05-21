@@ -1,0 +1,109 @@
+name: CI
+
+# Quoted so YAML 1.1 parsers don't coerce bare `on` to boolean true.
+"on":
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ main ]
+
+# Cancel in-progress runs on the same ref when a new push lands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  c-tests:
+    # New sparse-gate library at implementation/c/. Builds the qreg
+    # primitives, all gates, QFT, Grover, Shor, and the demo binary,
+    # then runs every tests/test_*.c at NP = 1, 2, 4 via `make test`.
+    name: implementation/c — make test (NP=1,2,4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenMPI and build essentials
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libopenmpi-dev openmpi-bin
+
+      - name: Show toolchain versions
+        run: |
+          mpicc --version | head -1
+          mpirun --version | head -1
+          make --version | head -1
+
+      - name: Build and test
+        working-directory: implementation/c
+        run: |
+          make
+          make test
+
+      - name: Run a couple of demos as smoke tests
+        working-directory: implementation/c
+        run: |
+          mpirun --oversubscribe -n 4 build/bin/qubit --algo bell
+          mpirun --oversubscribe -n 4 build/bin/qubit --algo qft
+          mpirun --oversubscribe -n 4 build/bin/qubit --algo grover
+          mpirun --oversubscribe -n 1 build/bin/qubit --algo shor
+
+  c-tests-large:
+    # Re-run the full /c test suite at NP=8 to catch any rank-count
+    # bugs that only show up with deeper partitioning.
+    name: implementation/c — make test-large (NP=1,2,4,8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenMPI and build essentials
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libopenmpi-dev openmpi-bin
+
+      - name: Build and run test-large
+        working-directory: implementation/c
+        run: |
+          make
+          make test-large
+
+  original-build-check:
+    # The 2004 dense-matrix library lives at implementation/original/.
+    # It is preserved as a historical artifact, but we still want CI to
+    # verify it builds + the bundled make check passes (Bell-state
+    # smoke test at NP=4) so toolchain rot doesn't go unnoticed.
+    name: implementation/original — make check (NP=4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenMPI and build essentials
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libopenmpi-dev openmpi-bin
+
+      - name: Build and run check
+        working-directory: implementation/original
+        run: |
+          make
+          make check
+
+      - name: Verify the non-power-of-two NP guard fails fast
+        working-directory: implementation/original
+        run: |
+          if make run NP=3 2>&1 | grep -q "unsafe for this demo"; then
+            echo "OK: makefile guard emitted the expected error message"
+          else
+            echo "FAIL: NP=3 did not surface the unsafe-NP guard"
+            exit 1
+          fi
+          # `make run NP=3` is expected to fail with exit code 2.
+          ! make run NP=3 >/dev/null 2>&1

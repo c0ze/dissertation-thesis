@@ -83,6 +83,53 @@ static void test_qft_detects_period(void) {
     qreg_destroy(q);
 }
 
+/* ---- CI-additions: norm preservation, larger n, linearity ---- */
+
+static void test_qft_preserves_norm_on_basis_state(void) {
+    int n = 4;
+    qreg *q = qreg_create(n, MPI_COMM_WORLD);
+    qreg_init_basis(q, 9);            /* arbitrary non-zero basis state */
+    apply_qft(q, 0, n);
+    ASSERT_NORM_ONE(q);
+    qreg_destroy(q);
+}
+
+static void test_qft_on_4_qubits_uniform_from_zero(void) {
+    /* QFT |0...0> on n=4 yields the uniform superposition over 16
+     * basis states, each with prob 1/16. Distinct from the 3-qubit
+     * test, this exercises an extra round of controlled-phase nesting. */
+    int n = 4;
+    qreg *q = qreg_create(n, MPI_COMM_WORLD);
+    qreg_init_basis(q, 0);
+    apply_qft(q, 0, n);
+    double expected = 1.0 / (double)(1 << n);
+    for (size_t i = 0; i < (size_t)(1 << n); i++) {
+        TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, expected, prob_of(q, i));
+    }
+    ASSERT_NORM_ONE(q);
+    qreg_destroy(q);
+}
+
+static void test_qft_round_trip_on_basis_states(void) {
+    /* Run QFT-then-inverse on several different basis inputs and
+     * confirm each returns to its starting state. Spot-checks that the
+     * inverse covers more than the one shot in test_qft_round_trip.   */
+    int n = 4;
+    size_t bases[] = {0, 1, 3, 7, 10, 15};
+    for (size_t b = 0; b < sizeof(bases)/sizeof(bases[0]); b++) {
+        qreg *q = qreg_create(n, MPI_COMM_WORLD);
+        qreg_init_basis(q, bases[b]);
+        apply_qft        (q, 0, n);
+        apply_qft_inverse(q, 0, n);
+        TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, bases[b]));
+        for (size_t i = 0; i < (size_t)(1 << n); i++) {
+            if (i == bases[b]) continue;
+            TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.0, prob_of(q, i));
+        }
+        qreg_destroy(q);
+    }
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -90,6 +137,9 @@ void register_tests(void) {
     RUN_TEST(test_qft_of_zero_is_uniform);
     RUN_TEST(test_qft_round_trip);
     RUN_TEST(test_qft_detects_period);
+    RUN_TEST(test_qft_preserves_norm_on_basis_state);
+    RUN_TEST(test_qft_on_4_qubits_uniform_from_zero);
+    RUN_TEST(test_qft_round_trip_on_basis_states);
 }
 
 TEST_RUNNER_MAIN()

@@ -85,12 +85,74 @@ static void test_grover_over_iteration_hurts(void) {
     qreg_destroy(q2);
 }
 
+/* ---- CI-additions: zero-iteration, optimum formula, all-marked ---- */
+
+static void test_grover_zero_iterations_is_uniform(void) {
+    /* With 0 iterations apply_grover should leave the register in the
+     * uniform superposition produced by the H^n pre-step.              */
+    int n = 4;
+    g_marked = 11;
+    qreg *q = qreg_create(n, MPI_COMM_WORLD);
+    qreg_init_basis(q, 0);
+    apply_grover(q, n, oracle_single_marked, NULL, 0);
+    double expected = 1.0 / (double)(1 << n);
+    for (size_t i = 0; i < (size_t)(1 << n); i++) {
+        TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, expected, prob_of(q, i));
+    }
+    qreg_destroy(q);
+}
+
+static void test_grover_probability_matches_formula(void) {
+    /* Analytical prob after k iterations on 1 marked item in N=16:
+     *   p_k = sin^2((2k+1)*theta) with sin(theta) = 1/4.                *
+     * Tolerance 1e-6 accounts for the ~50 gates of accumulated FP.     */
+    int n = 4;
+    g_marked = 5;
+    double sin_theta = 0.25;
+    double theta     = asin(sin_theta);
+    int   k_values[] = {1, 2, 3};
+    for (size_t i = 0; i < sizeof(k_values)/sizeof(k_values[0]); i++) {
+        int k = k_values[i];
+        qreg *q = qreg_create(n, MPI_COMM_WORLD);
+        qreg_init_basis(q, 0);
+        apply_grover(q, n, oracle_single_marked, NULL, k);
+        double expected = pow(sin((2*k + 1) * theta), 2);
+        double actual   = prob_of(q, g_marked);
+        TEST_ASSERT_DOUBLE_WITHIN(1e-6, expected, actual);
+        qreg_destroy(q);
+    }
+}
+
+static void oracle_mark_all(qreg *q, void *user) {
+    (void)user;
+    for (size_t i = 0; i < q->local_size; i++) q->amp[i] = -q->amp[i];
+}
+
+static void test_grover_all_marked_one_iter(void) {
+    /* If every state is marked, the oracle is a global phase and the
+     * diffusion's effect on the uniform state is just to add a global
+     * sign too. Probabilities should remain uniform after any number
+     * of iterations.                                                   */
+    int n = 4;
+    qreg *q = qreg_create(n, MPI_COMM_WORLD);
+    qreg_init_basis(q, 0);
+    apply_grover(q, n, oracle_mark_all, NULL, 2);
+    double expected = 1.0 / (double)(1 << n);
+    for (size_t i = 0; i < (size_t)(1 << n); i++) {
+        TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, expected, prob_of(q, i));
+    }
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
     RUN_TEST(test_grover_1_marked_in_16);
     RUN_TEST(test_grover_4_marked_in_16);
     RUN_TEST(test_grover_over_iteration_hurts);
+    RUN_TEST(test_grover_zero_iterations_is_uniform);
+    RUN_TEST(test_grover_probability_matches_formula);
+    RUN_TEST(test_grover_all_marked_one_iter);
 }
 
 TEST_RUNNER_MAIN()
