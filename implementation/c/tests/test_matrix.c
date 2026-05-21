@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include <stdlib.h>
 #include "matrix.h"
+#include "parallel.h"
 #include "standart.h"
 #include "unity/unity.h"
 #include "test_assert.h"
@@ -95,6 +96,30 @@ static void test_prob_of_basis_state(void) {
     qreg_destroy(q);
 }
 
+static void test_apply_h_on_qubit0_from_basis0(void) {
+    qreg *q = qreg_create(3, MPI_COMM_WORLD);
+    /* If qubit 0 is global at this NP, skip - that case is covered in Task 18. */
+    if (!is_local_qubit(q, 0)) { qreg_destroy(q); TEST_PASS(); return; }
+    qreg_init_basis(q, 0);
+    apply_h(q, 0);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.5, prob_of(q, 0));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.5, prob_of(q, 1));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.0, prob_of(q, 2));
+    ASSERT_NORM_ONE(q);
+    qreg_destroy(q);
+}
+
+static void test_apply_h_twice_is_identity(void) {
+    qreg *q = qreg_create(3, MPI_COMM_WORLD);
+    qreg_init_basis(q, 5);
+    /* Skip if qubit 1 is global at this NP — apply_u global lands in Task 18. */
+    if (!is_local_qubit(q, 1)) { qreg_destroy(q); TEST_PASS(); return; }
+    apply_h(q, 1);
+    apply_h(q, 1);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 5));
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -107,6 +132,8 @@ void register_tests(void) {
     RUN_TEST(test_init_basis_normalisation);
     RUN_TEST(test_norm_of_basis_state);
     RUN_TEST(test_prob_of_basis_state);
+    RUN_TEST(test_apply_h_on_qubit0_from_basis0);
+    RUN_TEST(test_apply_h_twice_is_identity);
 }
 
 TEST_RUNNER_MAIN()

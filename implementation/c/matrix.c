@@ -1,5 +1,7 @@
 #include "matrix.h"
+#include "parallel.h"
 #include "standart.h"
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -73,4 +75,39 @@ double prob_of(const qreg *q, size_t basis) {
     double global = 0.0;
     MPI_Allreduce(&local, &global, 1, MPI_DOUBLE, MPI_SUM, q->comm);
     return global;
+}
+
+static void apply_u_local(qreg *q, int target, complex double u[2][2]) {
+    size_t stride = (size_t)1 << target;
+    size_t step   = stride << 1;
+    for (size_t base = 0; base < q->local_size; base += step) {
+        for (size_t off = 0; off < stride; off++) {
+            size_t i0 = base + off;
+            size_t i1 = i0 + stride;
+            complex double a0 = q->amp[i0];
+            complex double a1 = q->amp[i1];
+            q->amp[i0] = u[0][0]*a0 + u[0][1]*a1;
+            q->amp[i1] = u[1][0]*a0 + u[1][1]*a1;
+        }
+    }
+}
+
+void apply_u(qreg *q, int target, complex double u[2][2]) {
+    QREG_ASSERT(q != NULL, "apply_u: q is NULL");
+    QREG_ASSERT(u != NULL, "apply_u: u is NULL");
+    QREG_ASSERT(target >= 0 && target < q->n_qubits,
+                "apply_u: target out of range");
+    /* Global path lands in Task 18; for now require local. */
+    QREG_ASSERT(is_local_qubit(q, target),
+                "apply_u: global-qubit path not implemented yet");
+    apply_u_local(q, target, u);
+}
+
+void apply_h(qreg *q, int target) {
+    const double s = 1.0 / sqrt(2.0);
+    complex double u[2][2] = {
+        { s,  s},
+        { s, -s},
+    };
+    apply_u(q, target, u);
 }
