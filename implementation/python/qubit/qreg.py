@@ -1,9 +1,18 @@
 """Qreg: state-vector quantum register backed by a 1-D PyTorch tensor.
 
-The Phase 0+1 surface is construction, accessors, and the qubit-axis
-helper. Gate methods, measurement, QFT, Grover, and Shor land in later
-phases. See the design notes (rounds §1-§5 of the brainstorm) for the
-overall architecture and the rationale behind each choice.
+Surface through Phase 3: construction + accessors (Phase 0+1) and the
+single-qubit gate methods (Phase 3). Controlled gates, multi-controlled
+gates, measurement (beyond ``prob_of`` / ``norm``), QFT, Grover, and
+Shor land in later phases. See the design notes (rounds §1-§5 of the
+brainstorm) for the overall architecture and the rationale behind each
+choice.
+
+The gate methods are thin wrappers around the function-style API in
+:mod:`qubit.gates_single` (and equivalents for controlled / multi-
+controlled / measurement / QFT / Grover / Shor in later phases). Both
+styles are supported deliberately: ``q.apply_h(0)`` reads naturally for
+method-chaining, while ``apply_h(q, 0)`` works for users who prefer the
+functional style and matches the lower-level signature used internally.
 
 Key invariants:
 
@@ -245,3 +254,86 @@ class Qreg:
         return float(
             (amp.real * amp.real + amp.imag * amp.imag).sum().item()
         )
+
+    # ---- single-qubit gate methods (Phase 3) ----------------------------
+    #
+    # These are thin wrappers around the function-style API in
+    # :mod:`qubit.gates_single`. Both call shapes are public:
+    # ``q.apply_h(0)`` is method-style; ``apply_h(q, 0)`` (imported from
+    # ``qubit``) is the function-style equivalent. They share the same
+    # underlying implementation -- the method just forwards self.
+    #
+    # The :mod:`qubit.gates_single` import is deferred inside each method
+    # so importing :mod:`qubit.qreg` from the gates module (for static
+    # type hints via ``TYPE_CHECKING``) does not create a runtime cycle.
+
+    def apply_u(self, target: int, u: torch.Tensor) -> None:
+        """Apply a 2x2 single-qubit unitary to the target qubit.
+
+        ``u`` must be a 2x2 :class:`torch.Tensor` on the same device and
+        with the same complex dtype as this register. See
+        :func:`qubit.gates_single.apply_u` for the full contract.
+        """
+        from . import gates_single
+
+        gates_single.apply_u(self, target, u)
+
+    def apply_h(self, target: int) -> None:
+        """Apply the Hadamard gate to ``target``."""
+        from . import gates_single
+
+        gates_single.apply_h(self, target)
+
+    def apply_x(self, target: int) -> None:
+        """Apply the Pauli-X (bit-flip) gate to ``target``."""
+        from . import gates_single
+
+        gates_single.apply_x(self, target)
+
+    def apply_y(self, target: int) -> None:
+        """Apply the Pauli-Y gate to ``target``."""
+        from . import gates_single
+
+        gates_single.apply_y(self, target)
+
+    def apply_z(self, target: int) -> None:
+        """Apply the Pauli-Z (phase-flip) gate to ``target``."""
+        from . import gates_single
+
+        gates_single.apply_z(self, target)
+
+    def apply_s(self, target: int) -> None:
+        """Apply the S (phase pi/2) gate to ``target``."""
+        from . import gates_single
+
+        gates_single.apply_s(self, target)
+
+    def apply_t(self, target: int) -> None:
+        """Apply the T (phase pi/4) gate to ``target``."""
+        from . import gates_single
+
+        gates_single.apply_t(self, target)
+
+    def apply_phase(self, target: int, theta: float) -> None:
+        """Apply the general phase gate ``diag(1, e^{i theta})`` to ``target``."""
+        from . import gates_single
+
+        gates_single.apply_phase(self, target, theta)
+
+    def apply_rx(self, target: int, theta: float) -> None:
+        """Apply the rotation ``RX(theta)`` to ``target``."""
+        from . import gates_single
+
+        gates_single.apply_rx(self, target, theta)
+
+    def apply_ry(self, target: int, theta: float) -> None:
+        """Apply the rotation ``RY(theta)`` to ``target``."""
+        from . import gates_single
+
+        gates_single.apply_ry(self, target, theta)
+
+    def apply_rz(self, target: int, theta: float) -> None:
+        """Apply the rotation ``RZ(theta)`` to ``target``."""
+        from . import gates_single
+
+        gates_single.apply_rz(self, target, theta)

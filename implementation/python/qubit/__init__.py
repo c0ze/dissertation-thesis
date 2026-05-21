@@ -4,16 +4,22 @@ Sibling of ``implementation/c`` (MPI) and ``implementation/go``
 (goroutines). The PyTorch backend gives device-agnostic GPU support:
 the same code runs on NVIDIA CUDA, AMD ROCm, Apple Metal (MPS), and CPU.
 
-Phase 0+1+2 ships the data model and the shared arithmetic helpers:
-:class:`Qreg` construction, accessors, the qubit-axis helper, and the
-``standart`` module (gcd, mod_pow, continued_fraction, is_power_of_two,
-ilog2_u32) that gates and Shor's period finder will consume. Gate
-methods, measurement (beyond ``prob_of`` / ``norm``), QFT, Grover, and
-Shor itself land in later phases.
+Through Phase 3 this ships: the data model (:class:`Qreg` construction,
+accessors, the qubit-axis helper), the ``standart`` arithmetic helpers
+(gcd, mod_pow, continued_fraction, is_power_of_two, ilog2_u32), and the
+single-qubit gate primitives (``apply_u`` plus the standard named gates
+``apply_h`` / ``apply_x`` / ``apply_y`` / ``apply_z`` / ``apply_s`` /
+``apply_t`` / ``apply_phase`` / ``apply_rx`` / ``apply_ry`` /
+``apply_rz``). Controlled gates, multi-controlled gates, measurement
+(beyond ``prob_of`` / ``norm``), QFT, Grover, and Shor land in later
+phases.
 
 Public API surface:
 
-* :class:`Qreg` -- the state-vector register class.
+* :class:`Qreg` -- the state-vector register class with methods for
+  every gate (``q.apply_h(0)``).
+* Function-style gate equivalents (``apply_h(q, 0)``) re-exported from
+  :mod:`qubit.gates_single`. Both shapes are first-class.
 * :func:`qubit_axis` -- the LSB-first qubit-to-tensor-axis helper.
 * Arithmetic helpers from :mod:`qubit.standart`:
   :func:`gcd_u64`, :func:`mod_pow`, :func:`continued_fraction`,
@@ -26,6 +32,19 @@ Public API surface:
 from __future__ import annotations
 
 from ._axis import qubit_axis
+from .gates_single import (
+    apply_h,
+    apply_phase,
+    apply_rx,
+    apply_ry,
+    apply_rz,
+    apply_s,
+    apply_t,
+    apply_u,
+    apply_x,
+    apply_y,
+    apply_z,
+)
 from .qreg import (
     AMP_TOL_C64,
     AMP_TOL_C128,
@@ -50,6 +69,17 @@ __all__ = [
     "PROB_TOL_C64",
     "Qreg",
     "amp_tol_for",
+    "apply_h",
+    "apply_phase",
+    "apply_rx",
+    "apply_ry",
+    "apply_rz",
+    "apply_s",
+    "apply_t",
+    "apply_u",
+    "apply_x",
+    "apply_y",
+    "apply_z",
     "continued_fraction",
     "gcd_u64",
     "ilog2_u32",

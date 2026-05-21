@@ -9,7 +9,7 @@ with a CPU fallback.
 
 ## Status
 
-**Phase 0+1+2 complete.** This ships:
+**Phase 0+1+2+3 complete.** This ships:
 
 - The package scaffold (`pyproject.toml`, `uv`-managed env, `ruff` +
   `mypy` + `pytest` configured)
@@ -20,11 +20,17 @@ with a CPU fallback.
   `continued_fraction`, `is_power_of_two`, `ilog2_u32`) -- Python
   builtins (`math.gcd`, `pow`, `fractions.Fraction.limit_denominator`)
   wrapped with `qubit:`-prefixed validation
-- Tests for everything above (162 passing)
+- Single-qubit gates: `apply_u` (the tensor-native workhorse via
+  `tensordot` + `movedim`) plus `apply_h`, `apply_x`, `apply_y`,
+  `apply_z`, `apply_s`, `apply_t`, `apply_phase`, `apply_rx`,
+  `apply_ry`, `apply_rz`. Both function-style (`apply_h(q, 0)`) and
+  method-style (`q.apply_h(0)`) call shapes are public.
+- Tests for everything above (215 passing)
 
-**Not yet implemented:** gates (`apply_*`), measurement
-(`measure_qubit`, `measure_all`, `sample_distribution`), QFT, Grover,
-Shor, the CLI demo.
+**Not yet implemented:** controlled gates (`apply_cu`, `apply_cnot`,
+`apply_cz`, `apply_controlled_phase`, `apply_swap`), multi-controlled
+gates, measurement (`measure_qubit`, `measure_all`,
+`sample_distribution`), QFT, Grover, Shor, the CLI demo.
 
 ## Quickstart
 
@@ -56,11 +62,11 @@ make check          # lint + typecheck + test
   PyTorch tensors when the `Qreg` goes out of scope. No `with` block,
   no manual cleanup.
 
-## API at a glance (Phase 0+1)
+## API at a glance
 
 ```python
-import torch
-from qubit import Qreg, qubit_axis
+import math, torch
+from qubit import Qreg, apply_h, apply_x, qubit_axis
 
 # Auto-detect device + dtype.
 q = Qreg(n_qubits=4)
@@ -71,15 +77,26 @@ q = Qreg(4, device='cpu', seed=42, dtype=torch.complex128)
 
 # Seeded measurement-RNG is reproducible across same-seed Qregs.
 q.init_basis(5)  # |0101>
-print(q.amplitude(5))    # (1+0j)
 print(q.prob_of(5))      # 1.0
 print(q.norm())          # 1.0
 
+# Gates: both function-style and method-style work.
+q.apply_h(0)             # method-style
+apply_x(q, 1)            # function-style
+print(q.norm())          # still 1.0 (unitary)
+
+# Custom unitary via apply_u (the workhorse every named gate dispatches to).
+inv2 = 1.0 / math.sqrt(2.0)
+h = torch.tensor(
+    [[inv2 + 0j, inv2 + 0j], [inv2 + 0j, -inv2 + 0j]],
+    dtype=q.dtype, device=q.device,
+)
+q.apply_u(2, h)
+
 # Defensive CPU clone for inspection / cross-implementation comparison:
 amps = q.amplitudes_copy()   # 1-D CPU tensor, len 16
-assert amps[5] == 1+0j
 
-# Qubit-to-axis helper (used by future gate code):
+# Qubit-to-axis helper (used internally by every gate):
 assert qubit_axis(0, 4) == 3   # qubit 0 is the LSB / rightmost axis
 assert qubit_axis(3, 4) == 0   # qubit 3 is the MSB / leftmost axis
 ```
@@ -93,8 +110,10 @@ qubit/
   _device.py             # default_device, default_dtype, validate_dtype_device
   _memory.py             # estimate_state_bytes, estimate_peak_bytes, preflight
   _assert.py             # qubit:-prefixed ValueError/TypeError helpers
+  _view.py               # state_view + validate_matrix (gate helpers)
   qreg.py                # Qreg class
   standart.py            # arithmetic helpers (gcd, mod_pow, continued_fraction, ...)
+  gates_single.py        # apply_u + apply_h/x/y/z/s/t/phase/rx/ry/rz
 tests/
   conftest.py            # device fixture (parametrises over available devices)
   test_assert.py
@@ -103,6 +122,7 @@ tests/
   test_memory.py
   test_qreg.py
   test_standart.py
+  test_gates_single.py
   test_import.py         # phase-0 smoke test: package imports
 pyproject.toml
 Makefile
