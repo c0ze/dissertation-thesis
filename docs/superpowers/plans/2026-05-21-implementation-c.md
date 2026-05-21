@@ -645,7 +645,7 @@ static void test_mod_pow_basics(void) {
     TEST_ASSERT_EQUAL_UINT64(13, mod_pow(7, 3, 15));
     TEST_ASSERT_EQUAL_UINT64(1,  mod_pow(7, 4, 15));
     /* Large exponent without overflow: 2^64 mod 1000003 (a prime) */
-    TEST_ASSERT_EQUAL_UINT64(919715, mod_pow(2, 64, 1000003));
+    TEST_ASSERT_EQUAL_UINT64(350687, mod_pow(2, 64, 1000003));
 }
 ```
 
