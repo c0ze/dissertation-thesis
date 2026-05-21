@@ -42,3 +42,30 @@ func TestShorPeriodA7Mod15(t *testing.T) {
 		t.Errorf("recovered r=%d not a divisor of 4", res.R)
 	}
 }
+
+func TestShorFactor15(t *testing.T) {
+	res := ShorFactor(15, 8)
+	if res.P == 0 || res.Q == 0 {
+		t.Fatalf("ShorFactor(15) failed after %d attempts", res.Attempts)
+	}
+	if res.P*res.Q != 15 {
+		t.Errorf("ShorFactor(15): p=%d q=%d, p*q=%d, want 15", res.P, res.Q, res.P*res.Q)
+	}
+	if !(res.P == 3 || res.P == 5) {
+		t.Errorf("ShorFactor(15): p=%d, want 3 or 5", res.P)
+	}
+}
+
+func TestShorFactor15Repeated(t *testing.T) {
+	// 3 reps; each should succeed within 8 attempts and produce {3,5}.
+	for trial := 0; trial < 3; trial++ {
+		res := ShorFactor(15, 8)
+		if res.P*res.Q != 15 {
+			t.Errorf("trial %d: ShorFactor(15) gave p=%d q=%d", trial, res.P, res.Q)
+		}
+		if !((res.P == 3 && res.Q == 5) || (res.P == 5 && res.Q == 3)) {
+			t.Errorf("trial %d: ShorFactor(15) = (%d, %d), want (3,5) or (5,3)",
+				trial, res.P, res.Q)
+		}
+	}
+}
