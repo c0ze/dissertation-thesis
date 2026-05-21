@@ -39,3 +39,24 @@ func TestGroverOverIterationDropsAccuracy(t *testing.T) {
 		t.Errorf("over-iteration kept prob high (%v); expected oscillation", got)
 	}
 }
+
+func TestGrover4MarkedIn16(t *testing.T) {
+	n := 4
+	marks := []uint64{1, 5, 10, 14}
+	q, _ := NewQreg(n)
+	q.InitBasis(0)
+	oracle := func(q *Qreg, user interface{}) {
+		ms := user.([]uint64)
+		for _, m := range ms {
+			q.amp[m] = -q.amp[m]
+		}
+	}
+	q.ApplyGrover(n, oracle, marks, 1)
+	var pMarked float64
+	for _, m := range marks {
+		pMarked += q.ProbOf(m)
+	}
+	if abs(pMarked-1.0) > 0.01 {
+		t.Errorf("Grover 4-of-16 after 1 iter: pMarked = %v, want ~1.0", pMarked)
+	}
+}
