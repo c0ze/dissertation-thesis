@@ -27,3 +27,18 @@ func TestModularExpOrbitA2Mod5(t *testing.T) {
 			"orbit map")
 	}
 }
+
+func TestShorPeriodA7Mod15(t *testing.T) {
+	// Order of 7 mod 15 is 4. Use t=8 counting + n=4 target = 12 qubits.
+	n := 4
+	tBits := 8
+	q, _ := NewQreg(tBits+n, WithSeed(1))
+	res := q.ApplyShorPeriod(n, tBits, 0, n, 7, 15)
+	if res.R == 0 {
+		t.Fatalf("period finder returned r=0 (no recovery); raw c=%d", res.MeasuredC)
+	}
+	// Recovered period must divide true r=4: r in {1, 2, 4}.
+	if res.R != 1 && res.R != 2 && res.R != 4 {
+		t.Errorf("recovered r=%d not a divisor of 4", res.R)
+	}
+}
