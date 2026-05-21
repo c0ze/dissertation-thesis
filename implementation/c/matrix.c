@@ -135,3 +135,16 @@ void apply_h(qreg *q, int target) {
     };
     apply_u(q, target, u);
 }
+
+void apply_x(qreg *q, int target) {
+    complex double u[2][2] = { {0, 1}, {1, 0} };
+    apply_u(q, target, u);
+}
+void apply_y(qreg *q, int target) {
+    complex double u[2][2] = { {0, -I}, {I, 0} };
+    apply_u(q, target, u);
+}
+void apply_z(qreg *q, int target) {
+    complex double u[2][2] = { {1, 0}, {0, -1} };
+    apply_u(q, target, u);
+}

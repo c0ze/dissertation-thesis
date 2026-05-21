@@ -140,6 +140,45 @@ static void test_apply_h_on_global_qubit(void) {
     qreg_destroy(q);
 }
 
+static void test_pauli_x_flips_bit(void) {
+    qreg *q = qreg_create(3, MPI_COMM_WORLD);
+    qreg_init_basis(q, 0);
+    apply_x(q, 1);              /* flip qubit 1: |000> -> |010> = basis 2 */
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 2));
+    qreg_destroy(q);
+}
+
+static void test_pauli_y_on_zero(void) {
+    /* Y|0> = i|1>. prob_of(1) = 1.                                     */
+    qreg *q = qreg_create(2, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }   /* NP > 2^n_qubits: not a valid layout */
+    qreg_init_basis(q, 0);
+    apply_y(q, 0);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 1));
+    qreg_destroy(q);
+}
+
+static void test_pauli_z_on_zero_is_identity(void) {
+    qreg *q = qreg_create(2, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }
+    qreg_init_basis(q, 0);
+    apply_z(q, 0);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 0));
+    qreg_destroy(q);
+}
+
+static void test_pauli_z_on_one_negates(void) {
+    /* H Z |0> = (|0>-|1>)/sqrt(2); then H back gives |1>, not |0>. */
+    qreg *q = qreg_create(2, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }
+    qreg_init_basis(q, 0);
+    apply_h(q, 0);
+    apply_z(q, 0);
+    apply_h(q, 0);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 1));
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -155,6 +194,10 @@ void register_tests(void) {
     RUN_TEST(test_apply_h_on_qubit0_from_basis0);
     RUN_TEST(test_apply_h_twice_is_identity);
     RUN_TEST(test_apply_h_on_global_qubit);
+    RUN_TEST(test_pauli_x_flips_bit);
+    RUN_TEST(test_pauli_y_on_zero);
+    RUN_TEST(test_pauli_z_on_zero_is_identity);
+    RUN_TEST(test_pauli_z_on_one_negates);
 }
 
 TEST_RUNNER_MAIN()

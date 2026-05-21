@@ -45,5 +45,8 @@ double prob_of  (const qreg *q, size_t basis);
 /* Single-qubit gates (spec §6.1). */
 void apply_u(qreg *q, int target, complex double u[2][2]);
 void apply_h(qreg *q, int target);
+void apply_x(qreg *q, int target);
+void apply_y(qreg *q, int target);
+void apply_z(qreg *q, int target);
 
 #endif /* MATRIX_H */
