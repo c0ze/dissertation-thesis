@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 )
 
 // MeasureQubit performs a projective measurement on the target qubit
@@ -59,4 +60,39 @@ func (q *Qreg) Dump(w io.Writer) {
 			fmt.Fprintf(w, "|%d>: %v\n", i, a)
 		}
 	}
+}
+
+// MeasureAll samples a full basis index from the |amp|^2 distribution
+// and collapses the register onto |outcome>. Returns the outcome as a
+// uint64 basis index.
+func (q *Qreg) MeasureAll() uint64 {
+	u := q.rng.Float64()
+	var cum float64
+	chosen := uint64(len(q.amp) - 1) // default to last index for numerical edge
+	for i, a := range q.amp {
+		cum += real(a)*real(a) + imag(a)*imag(a)
+		if u < cum {
+			chosen = uint64(i)
+			break
+		}
+	}
+	for i := range q.amp {
+		q.amp[i] = 0
+	}
+	q.amp[chosen] = complex(1, 0)
+	return chosen
+}
+
+// Clone returns an independent Qreg with the same amplitudes, worker
+// count, and a freshly seeded RNG. The original and the clone do not
+// share any mutable state.
+func (q *Qreg) Clone() *Qreg {
+	c := &Qreg{
+		amp:     make([]complex128, len(q.amp)),
+		nQubits: q.nQubits,
+		workers: q.workers,
+		rng:     rand.New(rand.NewSource(q.rng.Int63())),
+	}
+	copy(c.amp, q.amp)
+	return c
 }

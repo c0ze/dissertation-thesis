@@ -38,3 +38,41 @@ func TestMeasureQubitCollapsesAndRenormalises(t *testing.T) {
 		t.Errorf("post-collapse not a basis state: a0sq=%v, a1sq=%v", a0sq, a1sq)
 	}
 }
+
+func TestMeasureAllOnBasisStateIsDeterministic(t *testing.T) {
+	q, _ := NewQreg(3, WithSeed(1))
+	q.InitBasis(6)
+	if got := q.MeasureAll(); got != 6 {
+		t.Errorf("MeasureAll on |6> = %d, want 6", got)
+	}
+}
+
+func TestMeasureAllCollapses(t *testing.T) {
+	q, _ := NewQreg(2, WithSeed(7))
+	q.InitBasis(0)
+	q.ApplyH(0)
+	q.ApplyH(1)
+	got := q.MeasureAll()
+	// Post-measure, q.amp[got] should be ~1 and everyone else 0.
+	for i, a := range q.amp {
+		mag := real(a)*real(a) + imag(a)*imag(a)
+		if i == int(got) {
+			if abs(mag-1.0) > ProbTol {
+				t.Errorf("post-measure amp[%d] magnitude = %v, want 1", i, mag)
+			}
+		} else {
+			if mag > ProbTol {
+				t.Errorf("post-measure amp[%d] magnitude = %v, want 0", i, mag)
+			}
+		}
+	}
+}
+
+func TestCloneIsIndependent(t *testing.T) {
+	q, _ := NewQreg(3, WithSeed(7))
+	q.InitBasis(2)
+	c := q.Clone()
+	c.ApplyX(0) // mutate the clone
+	// Original amp[2] should still be 1.
+	assertAmpNear(t, complex(1, 0), q.amp[2], "original after clone mutation")
+}
