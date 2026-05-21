@@ -19,7 +19,9 @@ func (q *Qreg) ApplyMultiControlledZ(n int) {
 }
 
 // ApplyMultiControlledX flips the target qubit when every control qubit is 1.
-// Generalises Toffoli; len(controls) == 2 is Toffoli, == 1 is CNOT.
+// Generalises Toffoli (spec §5.3): len(controls)==2 is Toffoli, ==1 is CNOT.
+// Pair-index iteration mirrors ApplyCU; the control mask filters pairs where
+// any control bit is 0, so only the all-controls-one pairs are swapped.
 func (q *Qreg) ApplyMultiControlledX(controls []int, target int) {
 	assert(target >= 0 && target < q.nQubits,
 		"ApplyMultiControlledX: target=%d out of [0, %d)", target, q.nQubits)
