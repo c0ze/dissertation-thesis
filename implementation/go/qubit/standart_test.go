@@ -21,6 +21,48 @@ func TestGCD(t *testing.T) {
 	}
 }
 
+func TestContinuedFraction(t *testing.T) {
+	// 3/8 should round-trip exactly with maxDenom >= 8.
+	num, den := ContinuedFraction(3.0/8.0, 100)
+	if num != 3 || den != 8 {
+		t.Errorf("ContinuedFraction(3/8, 100) = %d/%d, want 3/8", num, den)
+	}
+	// 1/3: best rational with denominator <= 10 is 1/3.
+	num, den = ContinuedFraction(1.0/3.0, 10)
+	if num != 1 || den != 3 {
+		t.Errorf("ContinuedFraction(1/3, 10) = %d/%d, want 1/3", num, den)
+	}
+}
+
+func TestIsPowerOfTwo(t *testing.T) {
+	cases := []struct {
+		x    int
+		want bool
+	}{
+		{1, true}, {2, true}, {4, true}, {1024, true},
+		{0, false}, {3, false}, {6, false}, {-2, false},
+	}
+	for _, c := range cases {
+		if got := IsPowerOfTwo(c.x); got != c.want {
+			t.Errorf("IsPowerOfTwo(%d) = %v, want %v", c.x, got, c.want)
+		}
+	}
+}
+
+func TestIlog2(t *testing.T) {
+	cases := []struct {
+		x    uint32
+		want int
+	}{
+		{1, 0}, {2, 1}, {4, 2}, {1024, 10}, {1 << 30, 30},
+	}
+	for _, c := range cases {
+		if got := Ilog2(c.x); got != c.want {
+			t.Errorf("Ilog2(%d) = %d, want %d", c.x, got, c.want)
+		}
+	}
+}
+
 func TestModPow(t *testing.T) {
 	cases := []struct {
 		base, exp, mod, want uint64
