@@ -4,7 +4,9 @@
 # Targets:
 #   make                 build libqubit.a (when sources exist) and bin/qubit
 #   make test            build and run every tests/test_*.c at NP=1, 2, 4
-#   make test-large      additionally rerun existing suite at NP=8
+#   make test-large      runs the suite at NP=1,2,4,8 and sets
+#                          RUN_SHOR_21=1 to unlock the Shor(21) factor
+#                          test (skipped by default in `make test`)
 #   make demo ALGO=qft NP=4
 #   make clean / distclean
 #
@@ -68,10 +70,14 @@ $(UNITY_OBJ): tests/unity/unity.c | dirs
 $(TESTDIR)/%: tests/%.c $(LIB_OBJS) $(UNITY_OBJ) | dirs
 	$(MPICC) $(CFLAGS) -I. -Itests -Itests/unity $< $(LIB_OBJS) $(UNITY_OBJ) $(LDFLAGS) -o $@
 
-# Run a single test binary at a list of NP values.
+# Run a single test binary at a list of NP values.  MPI_ENV is an
+# optional set of `-x VAR=val` flags that targets can override to
+# forward extra environment variables (e.g. RUN_SHOR_21) through
+# mpirun to each rank's environment.
+MPI_ENV ?=
 define run_test_at_np
 	@echo "--- $(1) at NP=$(2) ---"
-	@mpirun --oversubscribe -n $(2) $(1) || (echo "FAIL: $(1) at NP=$(2)"; exit 1)
+	@mpirun --oversubscribe $(MPI_ENV) -n $(2) $(1) || (echo "FAIL: $(1) at NP=$(2)"; exit 1)
 
 endef
 
@@ -79,9 +85,13 @@ test: $(TEST_BINS)
 	$(foreach bin,$(TEST_BINS),$(foreach np,$(NPS_SMALL),$(call run_test_at_np,$(bin),$(np))))
 	@echo "OK: all tests passed at NP=$(NPS_SMALL)"
 
+# test-large opts in to slower tests gated behind RUN_SHOR_21 (currently
+# the 16-qubit Shor(21) end-to-end factor). The variable is forwarded
+# through mpirun via -x so it lands in every rank's environment.
+test-large: MPI_ENV := -x RUN_SHOR_21=1
 test-large: $(TEST_BINS)
 	$(foreach bin,$(TEST_BINS),$(foreach np,$(NPS_LARGE),$(call run_test_at_np,$(bin),$(np))))
-	@echo "OK: all tests passed at NP=$(NPS_LARGE)"
+	@echo "OK: all tests passed at NP=$(NPS_LARGE) (including RUN_SHOR_21)"
 
 # Demo binary.
 DEMO_OBJ := $(BUILDDIR)/qubit.o

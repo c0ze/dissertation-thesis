@@ -1,5 +1,6 @@
 #include <mpi.h>
 #include <stdint.h>
+#include <stdlib.h>     /* getenv */
 #include "matrix.h"
 #include "shor.h"
 #include "standart.h"
@@ -116,6 +117,25 @@ static void test_shor_factor_15_repeated(void) {
     }
 }
 
+/* Slow: 16-qubit register, ~tens of seconds wall time per run. Gated
+ * behind the RUN_SHOR_21 environment variable so `make test` (the
+ * common-case CI loop) stays fast; `make test-large` sets it. */
+static void test_shor_factor_21(void) {
+    if (getenv("RUN_SHOR_21") == NULL) {
+        TEST_PASS();   /* skip in the normal test path */
+        return;
+    }
+    shor_factor_result r = shor_factor(21, /*max_attempts=*/8);
+    TEST_ASSERT_TRUE_MESSAGE(r.p != 0 && r.q != 0,
+        "shor_factor(21) failed within 8 attempts");
+    TEST_ASSERT_EQUAL_UINT64(21ULL, r.p * r.q);
+    TEST_ASSERT_TRUE_MESSAGE(r.p > 1 && r.q > 1,
+        "trivial factors returned");
+    TEST_ASSERT_TRUE_MESSAGE(
+        (r.p == 3 && r.q == 7) || (r.p == 7 && r.q == 3),
+        "expected factors {3, 7}");
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -126,6 +146,7 @@ void register_tests(void) {
     RUN_TEST(test_modular_exp_orbit_a2_mod5);
     RUN_TEST(test_shor_period_a4_mod15);
     RUN_TEST(test_shor_factor_15_repeated);
+    RUN_TEST(test_shor_factor_21);
 }
 
 TEST_RUNNER_MAIN()
