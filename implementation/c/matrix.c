@@ -183,3 +183,106 @@ void apply_rz(qreg *q, int target, double theta) {
     };
     apply_u(q, target, u);
 }
+
+static void apply_cu_both_local(qreg *q, int control, int target,
+                                complex double u[2][2]) {
+    size_t cmask = (size_t)1 << control;
+    size_t tstride = (size_t)1 << target;
+    for (size_t i = 0; i < q->local_size; i++) {
+        if ((i & cmask) && !(i & tstride)) {
+            size_t j = i | tstride;
+            complex double a0 = q->amp[i];
+            complex double a1 = q->amp[j];
+            q->amp[i] = u[0][0]*a0 + u[0][1]*a1;
+            q->amp[j] = u[1][0]*a0 + u[1][1]*a1;
+        }
+    }
+}
+
+static void apply_cu_c_local_t_global(qreg *q, int control, int target,
+                                      complex double u[2][2]) {
+    int tbit    = target - (q->n_qubits - q->p);
+    int mybit   = (q->rank >> tbit) & 1;
+    int partner = q->rank ^ (1 << tbit);
+    size_t cmask = (size_t)1 << control;
+    complex double *buf = malloc(q->local_size * sizeof *buf);
+    exchange_amplitudes(q, partner, buf);
+    if (mybit == 0) {
+        for (size_t i = 0; i < q->local_size; i++) {
+            if (!(i & cmask)) continue;
+            complex double a0 = q->amp[i];
+            complex double a1 = buf[i];
+            q->amp[i] = u[0][0]*a0 + u[0][1]*a1;
+        }
+    } else {
+        for (size_t i = 0; i < q->local_size; i++) {
+            if (!(i & cmask)) continue;
+            complex double a0 = buf[i];
+            complex double a1 = q->amp[i];
+            q->amp[i] = u[1][0]*a0 + u[1][1]*a1;
+        }
+    }
+    free(buf);
+}
+
+static void apply_cu_c_global_t_local(qreg *q, int control, int target,
+                                      complex double u[2][2]) {
+    int cbit = control - (q->n_qubits - q->p);
+    if (((q->rank >> cbit) & 1) == 0) return;   /* no-op for this rank   */
+    /* Otherwise the gate is just a local single-qubit u on the target.  */
+    size_t tstride = (size_t)1 << target;
+    size_t step    = tstride << 1;
+    for (size_t base = 0; base < q->local_size; base += step) {
+        for (size_t off = 0; off < tstride; off++) {
+            size_t i0 = base + off;
+            size_t i1 = i0 + tstride;
+            complex double a0 = q->amp[i0];
+            complex double a1 = q->amp[i1];
+            q->amp[i0] = u[0][0]*a0 + u[0][1]*a1;
+            q->amp[i1] = u[1][0]*a0 + u[1][1]*a1;
+        }
+    }
+}
+
+static void apply_cu_both_global(qreg *q, int control, int target,
+                                 complex double u[2][2]) {
+    /* Partner is by target bit; control bit is fixed per rank.         */
+    int tbit    = target  - (q->n_qubits - q->p);
+    int cbit    = control - (q->n_qubits - q->p);
+    if (((q->rank >> cbit) & 1) == 0) return;     /* no-op on this rank */
+    int mybit   = (q->rank >> tbit) & 1;
+    int partner = q->rank ^ (1 << tbit);
+    complex double *buf = malloc(q->local_size * sizeof *buf);
+    exchange_amplitudes(q, partner, buf);
+    if (mybit == 0) {
+        for (size_t i = 0; i < q->local_size; i++) {
+            complex double a0 = q->amp[i];
+            complex double a1 = buf[i];
+            q->amp[i] = u[0][0]*a0 + u[0][1]*a1;
+        }
+    } else {
+        for (size_t i = 0; i < q->local_size; i++) {
+            complex double a0 = buf[i];
+            complex double a1 = q->amp[i];
+            q->amp[i] = u[1][0]*a0 + u[1][1]*a1;
+        }
+    }
+    free(buf);
+}
+
+void apply_cu(qreg *q, int control, int target, complex double u[2][2]) {
+    QREG_ASSERT(q != NULL,           "apply_cu: q is NULL");
+    QREG_ASSERT(u != NULL,           "apply_cu: u is NULL");
+    QREG_ASSERT(control >= 0 && control < q->n_qubits,
+                "apply_cu: control out of range");
+    QREG_ASSERT(target  >= 0 && target  < q->n_qubits,
+                "apply_cu: target out of range");
+    QREG_ASSERT(control != target,
+                "apply_cu: control == target");
+    int c_local = is_local_qubit(q, control);
+    int t_local = is_local_qubit(q, target);
+    if      ( c_local &&  t_local) apply_cu_both_local      (q, control, target, u);
+    else if ( c_local && !t_local) apply_cu_c_local_t_global(q, control, target, u);
+    else if (!c_local &&  t_local) apply_cu_c_global_t_local(q, control, target, u);
+    else                           apply_cu_both_global     (q, control, target, u);
+}

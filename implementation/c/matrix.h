@@ -55,4 +55,6 @@ void apply_rx(qreg *q, int target, double theta);
 void apply_ry(qreg *q, int target, double theta);
 void apply_rz(qreg *q, int target, double theta);
 
+void apply_cu(qreg *q, int control, int target, complex double u[2][2]);
+
 #endif /* MATRIX_H */

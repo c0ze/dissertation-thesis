@@ -252,6 +252,26 @@ static void test_rz_zero_is_identity(void) {
     qreg_destroy(q);
 }
 
+static void test_cu_both_local_makes_bell(void) {
+    /* On a 2-qubit register, H on 0 then CNOT(0,1) -> |Phi+>.           */
+    qreg *q = qreg_create(2, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }
+    /* Skip when either qubit is global; that's the dedicated test job. */
+    if (!is_local_qubit(q, 0) || !is_local_qubit(q, 1)) {
+        qreg_destroy(q); TEST_PASS(); return;
+    }
+    qreg_init_basis(q, 0);
+    apply_h(q, 0);
+    complex double cnot_target_u[2][2] = { {0,1}, {1,0} };
+    apply_cu(q, 0, 1, cnot_target_u);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.5, prob_of(q, 0));   /* |00> */
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.5, prob_of(q, 3));   /* |11> */
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.0, prob_of(q, 1));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.0, prob_of(q, 2));
+    ASSERT_NORM_ONE(q);
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -277,6 +297,7 @@ void register_tests(void) {
     RUN_TEST(test_rx_2pi_is_identity_up_to_phase);
     RUN_TEST(test_ry_pi_flips);
     RUN_TEST(test_rz_zero_is_identity);
+    RUN_TEST(test_cu_both_local_makes_bell);
 }
 
 TEST_RUNNER_MAIN()
