@@ -228,7 +228,7 @@ static void test_rx_2pi_is_identity_up_to_phase(void) {
     qreg *q = qreg_create(2, MPI_COMM_WORLD);
     if (!q) { TEST_PASS(); return; }
     qreg_init_basis(q, 0);
-    apply_rx(q, 0, 2.0 * M_PI);
+    apply_rx(q, 0, 2.0 * QREG_PI);
     TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 0));
     qreg_destroy(q);
 }
@@ -238,7 +238,7 @@ static void test_ry_pi_flips(void) {
     qreg *q = qreg_create(2, MPI_COMM_WORLD);
     if (!q) { TEST_PASS(); return; }
     qreg_init_basis(q, 0);
-    apply_ry(q, 0, M_PI);
+    apply_ry(q, 0, QREG_PI);
     TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 1));
     qreg_destroy(q);
 }

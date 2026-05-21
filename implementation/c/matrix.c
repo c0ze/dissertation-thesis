@@ -153,8 +153,8 @@ void apply_phase(qreg *q, int target, double theta) {
     complex double u[2][2] = { {1, 0}, {0, cexp(I * theta)} };
     apply_u(q, target, u);
 }
-void apply_s(qreg *q, int target) { apply_phase(q, target, M_PI / 2.0); }
-void apply_t(qreg *q, int target) { apply_phase(q, target, M_PI / 4.0); }
+void apply_s(qreg *q, int target) { apply_phase(q, target, QREG_PI / 2.0); }
+void apply_t(qreg *q, int target) { apply_phase(q, target, QREG_PI / 4.0); }
 
 void apply_rx(qreg *q, int target, double theta) {
     double c = cos(theta / 2.0);

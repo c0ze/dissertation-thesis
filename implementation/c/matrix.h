@@ -12,6 +12,10 @@
  * size_t arithmetic.                                                  */
 #define QREG_MAX_QUBITS 60
 
+/* C11 does not require <math.h> to expose M_PI, and CI builds with a
+ * strict language mode. Keep the library's angle constant project-local. */
+#define QREG_PI 3.141592653589793238462643383279502884
+
 /* Always-on assert. Survives -DNDEBUG. Uses MPI_Abort so failures on  *
  * one rank do not leave the others hanging in collective calls.       */
 #define QREG_ASSERT(cond, msg)                                              \

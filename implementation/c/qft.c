@@ -21,7 +21,7 @@ void apply_qft(qreg *q, int start, int n_qubits) {
         apply_h(q, target);
         for (int k = j + 1; k < n_qubits; k++) {
             int control = start + (n_qubits - 1 - k);
-            double theta = 2.0 * M_PI / (double)((size_t)1 << (k - j + 1));
+            double theta = 2.0 * QREG_PI / (double)((size_t)1 << (k - j + 1));
             apply_controlled_phase(q, control, target, theta);
         }
     }
@@ -45,7 +45,7 @@ void apply_qft_inverse(qreg *q, int start, int n_qubits) {
         int target = start + (n_qubits - 1 - j);
         for (int k = n_qubits - 1; k > j; k--) {
             int control = start + (n_qubits - 1 - k);
-            double theta = -2.0 * M_PI / (double)((size_t)1 << (k - j + 1));
+            double theta = -2.0 * QREG_PI / (double)((size_t)1 << (k - j + 1));
             apply_controlled_phase(q, control, target, theta);
         }
         apply_h(q, target);
