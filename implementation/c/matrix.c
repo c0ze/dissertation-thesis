@@ -307,3 +307,19 @@ void apply_swap(qreg *q, int a, int b) {
     apply_cnot(q, b, a);
     apply_cnot(q, a, b);
 }
+
+void apply_multi_controlled_z(qreg *q, int n) {
+    QREG_ASSERT(q != NULL,                 "apply_multi_controlled_z: q is NULL");
+    QREG_ASSERT(n >= 1 && n <= q->n_qubits,"apply_multi_controlled_z: n out of range");
+    /* Target the single basis state |1...1> on the first n qubits, with
+     * higher bits (n .. n_qubits-1) free. We must phase-flip every
+     * amplitude whose lower n bits are all 1 -- i.e. amp index with
+     * (mask & i) == mask where mask = (1<<n)-1.
+     * Iterate locally over indices that meet the predicate.              */
+    size_t mask = ((size_t)1 << n) - 1;
+    size_t base = (size_t)q->rank * q->local_size;
+    for (size_t off = 0; off < q->local_size; off++) {
+        size_t global = base + off;
+        if ((global & mask) == mask) q->amp[off] = -q->amp[off];
+    }
+}

@@ -342,6 +342,21 @@ static void test_swap_self_is_identity(void) {
     qreg_destroy(q);
 }
 
+static void test_mcz_flips_only_all_ones(void) {
+    qreg *q = qreg_create(3, MPI_COMM_WORLD);
+    qreg_init_basis(q, 0);
+    apply_h(q, 0); apply_h(q, 1); apply_h(q, 2);   /* |+++> */
+    apply_multi_controlled_z(q, 3);                /* phase on |111> only */
+    apply_h(q, 0); apply_h(q, 1); apply_h(q, 2);   /* H^3 again */
+    /* The state should now be H^3 (I - 2|111><111|) H^3 |0>
+     *  = |0> - 2 (1/8) sum_x (-1)^(popcount x) |x>
+     *  prob_of(0)  = (1 - 2*1/8)^2 = (3/4)^2 = 9/16
+     *  prob_of(7)  = (-2*1/8*(-1))^2  = (1/4)^2 = 1/16                  */
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 9.0/16.0, prob_of(q, 0));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0/16.0, prob_of(q, 7));
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -373,6 +388,7 @@ void register_tests(void) {
     RUN_TEST(test_controlled_phase_zero_is_identity);
     RUN_TEST(test_swap_exchanges_basis_indices);
     RUN_TEST(test_swap_self_is_identity);
+    RUN_TEST(test_mcz_flips_only_all_ones);
 }
 
 TEST_RUNNER_MAIN()
