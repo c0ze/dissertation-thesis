@@ -69,4 +69,6 @@ void apply_multi_controlled_z(qreg *q, int n);
 void apply_multi_controlled_x(qreg *q, const int *controls, int n_controls,
                               int target);
 
+int measure_qubit(qreg *q, int target);
+
 #endif /* MATRIX_H */

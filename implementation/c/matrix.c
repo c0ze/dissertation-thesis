@@ -361,3 +361,39 @@ void apply_multi_controlled_x(qreg *q, const int *controls, int n_controls,
         }
     }
 }
+
+int measure_qubit(qreg *q, int target) {
+    QREG_ASSERT(q != NULL, "measure_qubit: q is NULL");
+    QREG_ASSERT(target >= 0 && target < q->n_qubits,
+                "measure_qubit: target out of range");
+    /* 1. Compute P(bit_target == 0) locally; for each amplitude check
+     *    whether its global index has bit_target = 0.                    */
+    size_t base = (size_t)q->rank * q->local_size;
+    double local_p0 = 0.0;
+    for (size_t i = 0; i < q->local_size; i++) {
+        size_t global = base + i;
+        if (((global >> target) & 1) == 0) {
+            double r = creal(q->amp[i]), im = cimag(q->amp[i]);
+            local_p0 += r*r + im*im;
+        }
+    }
+    double p0 = 0.0;
+    MPI_Allreduce(&local_p0, &p0, 1, MPI_DOUBLE, MPI_SUM, q->comm);
+    /* 2. Rank 0 samples; broadcast the outcome. */
+    int outcome = 0;
+    if (q->rank == 0) {
+        double u = (double)rand() / (double)RAND_MAX;
+        outcome = (u < p0) ? 0 : 1;
+    }
+    MPI_Bcast(&outcome, 1, MPI_INT, 0, q->comm);
+    /* 3. Project and renormalise. */
+    double p_observed = (outcome == 0) ? p0 : (1.0 - p0);
+    double inv_sqrt   = 1.0 / sqrt(p_observed);
+    for (size_t i = 0; i < q->local_size; i++) {
+        size_t global = base + i;
+        int bit = (int)((global >> target) & 1);
+        if (bit != outcome) q->amp[i] = 0.0;
+        else                q->amp[i] *= inv_sqrt;
+    }
+    return outcome;
+}

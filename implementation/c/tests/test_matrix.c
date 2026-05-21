@@ -383,6 +383,32 @@ static void test_mcx_is_noop_when_a_control_is_zero(void) {
     qreg_destroy(q);
 }
 
+static void test_measure_qubit_deterministic(void) {
+    /* From |010> = basis 2, qubit 1 measures 1 with certainty. */
+    qreg *q = qreg_create(3, MPI_COMM_WORLD);
+    qreg_init_basis(q, 2);
+    int outcome = measure_qubit(q, 1);
+    TEST_ASSERT_EQUAL_INT(1, outcome);
+    /* After projection, prob_of(2) is still 1. */
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 2));
+    qreg_destroy(q);
+}
+
+static void test_measure_qubit_collapse(void) {
+    /* From |+0> on qubit 1: measure qubit 1, expect 0 or 1 then collapse. */
+    qreg *q = qreg_create(2, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }
+    if (!is_local_qubit(q, 0) || !is_local_qubit(q, 1)) {
+        qreg_destroy(q); TEST_PASS(); return;
+    }
+    qreg_init_basis(q, 0);
+    apply_h(q, 1);                          /* |0> on q0, |+> on q1 */
+    int outcome = measure_qubit(q, 1);
+    TEST_ASSERT_TRUE(outcome == 0 || outcome == 1);
+    ASSERT_NORM_ONE(q);
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -417,6 +443,8 @@ void register_tests(void) {
     RUN_TEST(test_mcz_flips_only_all_ones);
     RUN_TEST(test_mcx_acts_as_x_on_target_when_all_controls_set);
     RUN_TEST(test_mcx_is_noop_when_a_control_is_zero);
+    RUN_TEST(test_measure_qubit_deterministic);
+    RUN_TEST(test_measure_qubit_collapse);
 }
 
 TEST_RUNNER_MAIN()
