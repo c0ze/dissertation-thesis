@@ -57,4 +57,8 @@ void apply_rz(qreg *q, int target, double theta);
 
 void apply_cu(qreg *q, int control, int target, complex double u[2][2]);
 
+void apply_cnot            (qreg *q, int control, int target);
+void apply_cz              (qreg *q, int control, int target);
+void apply_controlled_phase(qreg *q, int control, int target, double theta);
+
 #endif /* MATRIX_H */

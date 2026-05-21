@@ -272,6 +272,49 @@ static void test_cu_both_local_makes_bell(void) {
     qreg_destroy(q);
 }
 
+static void test_cnot_local_makes_bell(void) {
+    qreg *q = qreg_create(2, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }
+    if (!is_local_qubit(q, 0) || !is_local_qubit(q, 1)) {
+        qreg_destroy(q); TEST_PASS(); return;
+    }
+    qreg_init_basis(q, 0);
+    apply_h(q, 0);
+    apply_cnot(q, 0, 1);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.5, prob_of(q, 0));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.5, prob_of(q, 3));
+    qreg_destroy(q);
+}
+
+static void test_cz_phase_on_11(void) {
+    /* CZ from |11> is just a phase. Sandwich with H to make it visible:
+     * |11> -> CZ -> -|11> -> H on qubit 1 -> still concentrated in the
+     * |10>/|11> branch when re-checked via H on qubit 1 inverse.        */
+    qreg *q = qreg_create(2, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }
+    if (!is_local_qubit(q, 0) || !is_local_qubit(q, 1)) {
+        qreg_destroy(q); TEST_PASS(); return;
+    }
+    qreg_init_basis(q, 0);
+    apply_x(q, 0); apply_x(q, 1);    /* |11>                            */
+    apply_cz(q, 0, 1);               /* phase only: still |11>          */
+    apply_h(q, 1); apply_h(q, 1);    /* identity                        */
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 3));
+    qreg_destroy(q);
+}
+
+static void test_controlled_phase_zero_is_identity(void) {
+    qreg *q = qreg_create(2, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }
+    if (!is_local_qubit(q, 0) || !is_local_qubit(q, 1)) {
+        qreg_destroy(q); TEST_PASS(); return;
+    }
+    qreg_init_basis(q, 3);                       /* |11> */
+    apply_controlled_phase(q, 0, 1, 0.0);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 3));
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -298,6 +341,9 @@ void register_tests(void) {
     RUN_TEST(test_ry_pi_flips);
     RUN_TEST(test_rz_zero_is_identity);
     RUN_TEST(test_cu_both_local_makes_bell);
+    RUN_TEST(test_cnot_local_makes_bell);
+    RUN_TEST(test_cz_phase_on_11);
+    RUN_TEST(test_controlled_phase_zero_is_identity);
 }
 
 TEST_RUNNER_MAIN()

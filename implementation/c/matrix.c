@@ -286,3 +286,16 @@ void apply_cu(qreg *q, int control, int target, complex double u[2][2]) {
     else if (!c_local &&  t_local) apply_cu_c_global_t_local(q, control, target, u);
     else                           apply_cu_both_global     (q, control, target, u);
 }
+
+void apply_cnot(qreg *q, int control, int target) {
+    complex double u[2][2] = { {0, 1}, {1, 0} };
+    apply_cu(q, control, target, u);
+}
+void apply_cz(qreg *q, int control, int target) {
+    complex double u[2][2] = { {1, 0}, {0, -1} };
+    apply_cu(q, control, target, u);
+}
+void apply_controlled_phase(qreg *q, int control, int target, double theta) {
+    complex double u[2][2] = { {1, 0}, {0, cexp(I * theta)} };
+    apply_cu(q, control, target, u);
+}
