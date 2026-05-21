@@ -448,14 +448,21 @@ control bit is 1 and target bit is 0.
 ### 5.4 Measurement
 
 * `ProbOf(basis uint64) float64`: direct lookup; no reduction.
-* `Norm() float64`: parallel reduction over `Amp`, sum of |a|^2.
-* `MeasureQubit(target int) int`: parallel reduce for $p_0$, sample,
-  parallel project + renormalise.
-* `MeasureAll() uint64`: parallel partial sum over chunks, CPU prefix
-  scan over chunks, sample uniform $u$, find chosen chunk + offset,
-  collapse.
+* `Norm() float64`: serial sum of `|amp[i]|^2`. Earlier spec rounds
+  promised "parallel reduction"; in practice the operating sizes are
+  small enough (largest shipped test register is 16 qubits, ~1 MiB)
+  that a parallel reduce + final fold buys nothing over the simple
+  loop. If a future use case ever stresses Norm at 25+ qubits, the
+  function can be widened to use `parallelOverIndices` with per-chunk
+  partial sums without changing the signature or contract.
+* `MeasureQubit(target int) int`: serial `p_0` accumulation, sample
+  from `q.rng`, serial project + renormalise. Same parallelisation
+  trade-off as Norm: simple is fine at the operating sizes.
+* `MeasureAll() uint64`: serial cumulative scan to find the sampled
+  chunk, then collapse. Same trade-off.
 * `SampleDistribution(out []uint64, shots int)`: Clone-and-MeasureAll
-  per shot; same shape as `/c`.
+  per shot; same shape as `/c`. The per-shot Clone is the dominant
+  cost, not the measurement itself.
 * `Clone() *Qreg`, `Dump(w io.Writer)` for diagnostics.
 
 ### 5.5 Shor's modular exponentiation

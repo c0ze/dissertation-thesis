@@ -128,15 +128,12 @@ func ShorFactor(N uint64, maxAttempts int) ShorFactorResult {
 	tBits := 2*n + 1
 	nTotal := tBits + n
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		// Pick random a in [2, N-1] coprime to N.
-		var a uint64
-		for {
-			a = uint64(rng.Intn(int(N-2))) + 2
-			if g := GCD(a, N); g != 1 {
-				// Lucky shortcut: gcd already a non-trivial factor.
-				return ShorFactorResult{P: g, Q: N / g, Attempts: attempt}
-			}
-			break
+		// Pick random a in [2, N-1]. If we get lucky and a is already
+		// a non-trivial divisor of N, return early -- no period
+		// finding needed. Otherwise proceed to Shor's quantum step.
+		a := uint64(rng.Intn(int(N-2))) + 2
+		if g := GCD(a, N); g != 1 {
+			return ShorFactorResult{P: g, Q: N / g, Attempts: attempt}
 		}
 		q, err := NewQreg(nTotal)
 		if err != nil {
