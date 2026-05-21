@@ -31,5 +31,23 @@ void apply_qft(qreg *q, int start, int n_qubits) {
     }
 }
 void apply_qft_inverse(qreg *q, int start, int n_qubits) {
-    (void)q; (void)start; (void)n_qubits;   /* stub */
+    QREG_ASSERT(q != NULL,         "apply_qft_inverse: q is NULL");
+    QREG_ASSERT(n_qubits >= 1,     "apply_qft_inverse: n_qubits < 1");
+    QREG_ASSERT(start >= 0,        "apply_qft_inverse: start < 0");
+    QREG_ASSERT(start + n_qubits <= q->n_qubits,
+                "apply_qft_inverse: range exceeds register size");
+    /* Reverse the swap pass first. */
+    for (int i = 0; i < n_qubits / 2; i++) {
+        apply_swap(q, start + i, start + n_qubits - 1 - i);
+    }
+    /* Then run the QFT decomposition backwards with negated phases. */
+    for (int j = n_qubits - 1; j >= 0; j--) {
+        int target = start + (n_qubits - 1 - j);
+        for (int k = n_qubits - 1; k > j; k--) {
+            int control = start + (n_qubits - 1 - k);
+            double theta = -2.0 * M_PI / (double)((size_t)1 << (k - j + 1));
+            apply_controlled_phase(q, control, target, theta);
+        }
+        apply_h(q, target);
+    }
 }

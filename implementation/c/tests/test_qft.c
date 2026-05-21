@@ -42,11 +42,54 @@ static void test_qft_of_zero_is_uniform(void) {
     qreg_destroy(q);
 }
 
+static void test_qft_round_trip(void) {
+    /* QFT^-1 . QFT = identity, up to floating-point. */
+    int n = 4;
+    qreg *q = qreg_create(n, MPI_COMM_WORLD);
+    qreg_init_basis(q, 5);
+    apply_qft        (q, 0, n);
+    apply_qft_inverse(q, 0, n);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 5));
+    /* No leakage to any other state. */
+    for (size_t i = 0; i < (size_t)(1 << n); i++) {
+        if (i == 5) continue;
+        TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.0, prob_of(q, i));
+    }
+    ASSERT_NORM_ONE(q);
+    qreg_destroy(q);
+}
+
+static void test_qft_detects_period(void) {
+    /* Prepare (1/sqrt(4)) (|0> + |2> + |4> + |6>). After QFT^-1, mass
+     * concentrates on multiples of N/r = 8/2 = 4: |0> and |4>, each with
+     * probability 0.5.                                                    */
+    int n = 3;
+    qreg *q = qreg_create(n, MPI_COMM_WORLD);
+    qreg_init_basis(q, 0);
+    for (size_t i = 0; i < q->local_size; i++) q->amp[i] = 0.0;
+    double a = 0.5;     /* 1/sqrt(4) */
+    size_t base = (size_t)q->rank * q->local_size;
+    for (size_t off = 0; off < q->local_size; off++) {
+        size_t g = base + off;
+        if (g == 0 || g == 2 || g == 4 || g == 6) q->amp[off] = a;
+    }
+    apply_qft_inverse(q, 0, n);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.5, prob_of(q, 0));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.5, prob_of(q, 4));
+    for (size_t i = 0; i < 8; i++) {
+        if (i == 0 || i == 4) continue;
+        TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.0, prob_of(q, i));
+    }
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
     RUN_TEST(test_qft_on_1_qubit_equals_h);
     RUN_TEST(test_qft_of_zero_is_uniform);
+    RUN_TEST(test_qft_round_trip);
+    RUN_TEST(test_qft_detects_period);
 }
 
 TEST_RUNNER_MAIN()
