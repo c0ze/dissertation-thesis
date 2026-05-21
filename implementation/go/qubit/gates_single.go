@@ -93,3 +93,39 @@ func (q *Qreg) ApplyPhase(target int, theta float64) {
 		{0, complex(math.Cos(theta), math.Sin(theta))},
 	})
 }
+
+// ApplyRx applies a rotation around the x-axis by theta.
+//
+//	Rx(theta) = [[cos(t/2), -i sin(t/2)], [-i sin(t/2), cos(t/2)]]
+func (q *Qreg) ApplyRx(target int, theta float64) {
+	c := complex(math.Cos(theta/2), 0)
+	s := complex(0, -math.Sin(theta/2))
+	q.ApplyU(target, [2][2]complex128{
+		{c, s},
+		{s, c},
+	})
+}
+
+// ApplyRy applies a rotation around the y-axis by theta.
+//
+//	Ry(theta) = [[cos(t/2), -sin(t/2)], [sin(t/2), cos(t/2)]]
+func (q *Qreg) ApplyRy(target int, theta float64) {
+	c := complex(math.Cos(theta/2), 0)
+	s := complex(math.Sin(theta/2), 0)
+	q.ApplyU(target, [2][2]complex128{
+		{c, -s},
+		{s, c},
+	})
+}
+
+// ApplyRz applies a rotation around the z-axis by theta.
+//
+//	Rz(theta) = [[e^{-i*t/2}, 0], [0, e^{i*t/2}]]
+func (q *Qreg) ApplyRz(target int, theta float64) {
+	negHalf := complex(math.Cos(-theta/2), math.Sin(-theta/2))
+	posHalf := complex(math.Cos(theta/2), math.Sin(theta/2))
+	q.ApplyU(target, [2][2]complex128{
+		{negHalf, 0},
+		{0, posHalf},
+	})
+}

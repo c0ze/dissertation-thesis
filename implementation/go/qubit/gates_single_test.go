@@ -89,3 +89,30 @@ func TestApplyPhasePiEqualsZ(t *testing.T) {
 	q.ApplyPhase(0, math.Pi)
 	assertAmpNear(t, complex(-1, 0), q.amp[1], "Phase(pi)|1> amp[1]")
 }
+
+func TestApplyRx2PiOnZeroIsNegativeIdentity(t *testing.T) {
+	q, _ := NewQreg(1)
+	q.InitBasis(0)
+	q.ApplyRx(0, 2*math.Pi)
+	// Rx(2pi) = -I
+	assertAmpNear(t, complex(-1, 0), q.amp[0], "Rx(2pi)|0> amp[0]")
+	assertAmpNear(t, complex(0, 0), q.amp[1], "Rx(2pi)|0> amp[1]")
+}
+
+func TestApplyRy4PiOnZeroIsIdentity(t *testing.T) {
+	q, _ := NewQreg(1)
+	q.InitBasis(0)
+	q.ApplyRy(0, 4*math.Pi)
+	// Ry(4pi) = I
+	assertAmpNear(t, complex(1, 0), q.amp[0], "Ry(4pi)|0> amp[0]")
+	assertAmpNear(t, complex(0, 0), q.amp[1], "Ry(4pi)|0> amp[1]")
+}
+
+func TestApplyRzOnZeroIsDiagonal(t *testing.T) {
+	q, _ := NewQreg(1)
+	q.InitBasis(0)
+	q.ApplyRz(0, math.Pi/2)
+	// Rz(theta)|0> = e^{-i*theta/2}|0>
+	want := complex(math.Cos(-math.Pi/4), math.Sin(-math.Pi/4))
+	assertAmpNear(t, want, q.amp[0], "Rz(pi/2)|0> amp[0]")
+}
