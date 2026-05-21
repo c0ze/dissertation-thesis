@@ -123,13 +123,15 @@ static void test_shor_factor_15_repeated(void) {
  * case CI loop) stays uncoupled from algorithm-end tests; `make
  * test-large` sets it.
  *
- * Test uses apply_shor_period with a FIXED a=2 (not the high-level
- * shor_factor which picks a randomly) so the test is deterministic
- * apart from the inherent measurement randomness inside QFT readout.
- * The true period of 2 mod 21 is 6, so the continued-fraction step
- * will recover one of its divisors {1, 2, 3, 6} -- any of these is
- * a passing result. This isolates the test from rand-induced flakes
- * that could come from shor_factor's random a-selection inner loop. */
+ * Test uses apply_shor_period with a FIXED base a=2 (not the high-
+ * level shor_factor which picks a randomly), so there is no random
+ * base-selection. apply_shor_period itself still measures, which
+ * leaves the QFT readout stochastic; the test bounds that by
+ * accepting any divisor of the true period 6 (the true period of 2
+ * mod 21 is 6: 2, 4, 8, 16, 32%21=11, 22%21=1). Continued-fraction
+ * therefore lands in {1, 2, 3, 6} -- any of these is a passing
+ * result. Removing the random a-selection alone eliminates the
+ * primary flake source from earlier drafts that called shor_factor. */
 static void test_shor_period_a2_mod21(void) {
     if (getenv("RUN_SHOR_21") == NULL) {
         TEST_PASS();   /* skip in the normal test path */

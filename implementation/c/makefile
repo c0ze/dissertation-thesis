@@ -5,8 +5,9 @@
 #   make                 build libqubit.a (when sources exist) and bin/qubit
 #   make test            build and run every tests/test_*.c at NP=1, 2, 4
 #   make test-large      runs the suite at NP=1,2,4,8 and sets
-#                          RUN_SHOR_21=1 to unlock the Shor(21) factor
-#                          test (skipped by default in `make test`)
+#                          RUN_SHOR_21=1 to unlock the 16-qubit
+#                          Shor(21) period-finding test (skipped by
+#                          default in `make test` for iteration speed)
 #   make demo ALGO=qft NP=4
 #   make clean / distclean
 #
@@ -85,9 +86,10 @@ test: $(TEST_BINS)
 	$(foreach bin,$(TEST_BINS),$(foreach np,$(NPS_SMALL),$(call run_test_at_np,$(bin),$(np))))
 	@echo "OK: all tests passed at NP=$(NPS_SMALL)"
 
-# test-large opts in to slower tests gated behind RUN_SHOR_21 (currently
-# the 16-qubit Shor(21) end-to-end factor). The variable is forwarded
-# through mpirun via -x so it lands in every rank's environment.
+# test-large opts in to additional tests gated behind RUN_SHOR_21
+# (currently the 16-qubit Shor(21) period-finding test, a=2/N=21,
+# r divides 6). The variable is forwarded through mpirun via -x so
+# it lands in every rank's environment.
 test-large: MPI_ENV := -x RUN_SHOR_21=1
 test-large: $(TEST_BINS)
 	$(foreach bin,$(TEST_BINS),$(foreach np,$(NPS_LARGE),$(call run_test_at_np,$(bin),$(np))))

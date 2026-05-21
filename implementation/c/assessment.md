@@ -72,9 +72,12 @@ the thesis in Task 41.
 
 All test binaries pass at NP = 1, 2, 4 via `make test`. `make test-large`
 additionally runs at NP = 8 and sets `RUN_SHOR_21=1`, which unlocks the
-16-qubit `test_shor_factor_21` end-to-end factoring test
-(`test_shor.c::test_shor_factor_21`). On Apple Silicon `shor_factor(21)`
-finishes in ~10 ms per call; on the GitHub Actions ubuntu-latest
-runners budget another ~50-100 ms. The Shor-21 test is gated behind
-the env var so the default `make test` loop stays fast for tight
-iteration.
+16-qubit `test_shor.c::test_shor_period_a2_mod21` period-finding test.
+The test calls `apply_shor_period` directly with a fixed base `a=2`
+(true period 6 mod 21) and asserts the recovered period divides 6 ---
+no random base-selection, so the only stochasticity left is the
+inherent quantum-measurement readout inside the QFT step. On Apple
+Silicon the whole Shor-21 run completes in ~10 ms; on GitHub Actions
+ubuntu-latest budget ~50-100 ms. The test is gated behind the env var
+so the default `make test` loop stays fast for tight iteration and
+keeps algorithm-end tests layered separately from primitive tests.

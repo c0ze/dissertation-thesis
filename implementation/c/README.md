@@ -31,8 +31,9 @@ See:
 make            # builds libqubit objects + bin/qubit demo
 make test       # runs every tests/test_*.c at NP = 1, 2, 4
 make test-large # NP = 1, 2, 4, 8; sets RUN_SHOR_21=1 which unlocks the
-                # 16-qubit test_shor_factor_21 end-to-end test (skipped
-                # in the default `make test` loop for iteration speed)
+                # 16-qubit test_shor_period_a2_mod21 period-finding test
+                # (skipped in the default `make test` loop for iteration
+                # speed and test-suite layering)
 make demo ALGO=qft NP=4
 make clean
 ```
