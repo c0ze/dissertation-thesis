@@ -35,12 +35,15 @@ Key invariants:
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 import torch
 
 from . import _device, _memory
 from ._assert import raise_type, raise_value
+
+if TYPE_CHECKING:
+    from .shor import ShorPeriodResult
 
 # Numerical tolerances by dtype. Tests pick the appropriate pair from
 # the Qreg's dtype property; gate tests will use ``AMP_TOL_*`` to compare
@@ -490,3 +493,43 @@ class Qreg:
         from . import grover
 
         grover.apply_grover(self, n_qubits, oracle, user, iterations)
+
+    # ---- Shor (Phase 8) -------------------------------------------------
+
+    def apply_modular_exp(
+        self,
+        counting_start: int,
+        t: int,
+        target_start: int,
+        n: int,
+        a: int,
+        N: int,
+    ) -> None:
+        """Apply the reversible (x, y) -> (x, a^x*y mod N) gate.
+
+        See :func:`qubit.shor.apply_modular_exp`.
+        """
+        from . import shor
+
+        shor.apply_modular_exp(
+            self, counting_start, t, target_start, n, a, N
+        )
+
+    def apply_shor_period(
+        self,
+        counting_start: int,
+        t: int,
+        target_start: int,
+        n: int,
+        a: int,
+        N: int,
+    ) -> ShorPeriodResult:
+        """Run one Shor period-finding round.
+
+        See :func:`qubit.shor.apply_shor_period`.
+        """
+        from . import shor
+
+        return shor.apply_shor_period(
+            self, counting_start, t, target_start, n, a, N
+        )

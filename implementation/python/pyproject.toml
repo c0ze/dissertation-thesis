@@ -41,7 +41,17 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 # Tests touch the private _amp/_n/_gen fields by design (same-package
 # inspection of internal state). Allow underscore-prefix access there.
-"tests/*" = ["SLF001"]
+# Also allow uppercase N in test names and local variables -- Shor's
+# algorithm uses uppercase N (the modulus) everywhere in math
+# literature, and keeping the convention in tests makes the math-to-
+# code traceability obvious.
+"tests/*" = ["SLF001", "N802", "N803", "N806"]
+# Shor's algorithm uses uppercase `N` (the modulus) universally in
+# the math literature; keeping the convention in code makes the
+# math-to-code traceability obvious. Same for qreg.py's Shor method
+# wrappers which thread `N` through to qubit.shor.
+"qubit/shor.py" = ["N803"]
+"qubit/qreg.py" = ["N803"]
 
 # ---- mypy -----------------------------------------------------------------
 [tool.mypy]

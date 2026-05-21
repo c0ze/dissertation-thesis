@@ -4,7 +4,7 @@ Sibling of ``implementation/c`` (MPI) and ``implementation/go``
 (goroutines). The PyTorch backend gives device-agnostic GPU support:
 the same code runs on NVIDIA CUDA, AMD ROCm, Apple Metal (MPS), and CPU.
 
-Through Phase 7 this ships: the data model (:class:`Qreg` construction,
+Through Phase 8 this ships: the data model (:class:`Qreg` construction,
 accessors, the qubit-axis helper), the ``standart`` arithmetic helpers
 (gcd, mod_pow, continued_fraction, is_power_of_two, ilog2_u32), the
 single-qubit gate primitives (``apply_u`` plus the standard named
@@ -14,8 +14,10 @@ gates), the controlled and multi-controlled gates (``apply_cu`` /
 ``apply_multi_controlled_x``), the measurement primitives
 (``measure_qubit`` / ``measure_all`` / ``sample_distribution`` /
 ``clone`` / ``dump``), the Quantum Fourier Transform
-(``apply_qft`` / ``apply_qft_inverse``), and Grover's amplitude
-amplification (``apply_grover``). Shor lands in the next phase.
+(``apply_qft`` / ``apply_qft_inverse``), Grover's amplitude
+amplification (``apply_grover``), and Shor's algorithm
+(``apply_modular_exp`` / ``apply_shor_period`` / ``shor_factor``).
+The CLI demo is the last remaining piece.
 
 Public API surface:
 
@@ -80,6 +82,13 @@ from .qreg import (
     amp_tol_for,
     prob_tol_for,
 )
+from .shor import (
+    ShorFactorResult,
+    ShorPeriodResult,
+    apply_modular_exp,
+    apply_shor_period,
+    shor_factor,
+)
 from .standart import (
     continued_fraction,
     gcd_u64,
@@ -94,6 +103,8 @@ __all__ = [
     "PROB_TOL_C128",
     "PROB_TOL_C64",
     "Qreg",
+    "ShorFactorResult",
+    "ShorPeriodResult",
     "amp_tol_for",
     "apply_cnot",
     "apply_controlled_phase",
@@ -101,6 +112,7 @@ __all__ = [
     "apply_cz",
     "apply_grover",
     "apply_h",
+    "apply_modular_exp",
     "apply_multi_controlled_x",
     "apply_multi_controlled_z",
     "apply_phase",
@@ -110,6 +122,7 @@ __all__ = [
     "apply_ry",
     "apply_rz",
     "apply_s",
+    "apply_shor_period",
     "apply_swap",
     "apply_t",
     "apply_u",
@@ -128,4 +141,5 @@ __all__ = [
     "prob_tol_for",
     "qubit_axis",
     "sample_distribution",
+    "shor_factor",
 ]

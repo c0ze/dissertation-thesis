@@ -9,7 +9,7 @@ with a CPU fallback.
 
 ## Status
 
-**Phase 0+1+2+3+4+5+6+7 complete.** This ships:
+**Phase 0+1+2+3+4+5+6+7+8 complete.** This ships:
 
 - The package scaffold (`pyproject.toml`, `uv`-managed env, `ruff` +
   `mypy` + `pytest` configured)
@@ -45,12 +45,18 @@ with a CPU fallback.
   `(Qreg, Any) -> None` that phase-flips marked basis states; the
   default iteration count is the optimum for one marked item
   (`floor(pi/4 * sqrt(N))`).
+- Shor's algorithm: `apply_modular_exp` (vectorized permutation via
+  `torch.gather`), `apply_shor_period` (the period-finding circuit),
+  and `shor_factor` (end-to-end with retry loop). v1 covers Shor-15
+  (12-qubit register) and Shor-21 (16-qubit register, gated by
+  `RUN_SHOR_21=1`). `shor_factor(N, max_attempts=20, seed=None)` is
+  bit-for-bit reproducible when seeded.
 - Both function-style (`apply_h(q, 0)`) and method-style
   (`q.apply_h(0)`) call shapes for every gate / measurement op /
-  QFT / Grover.
-- Tests for everything above (376 passing)
+  QFT / Grover / Shor primitive.
+- Tests for everything above (404 + 1 gated Shor-21 passing)
 
-**Not yet implemented:** Shor, the CLI demo.
+**Not yet implemented:** the CLI demo.
 
 ## Quickstart
 
@@ -139,6 +145,7 @@ qubit/
   measure.py             # measure_qubit + measure_all + sample_distribution + clone + dump
   qft.py                 # apply_qft + apply_qft_inverse (with bit-reversal swaps)
   grover.py              # apply_grover (uniform prep + oracle/diffusion iterations)
+  shor.py                # apply_modular_exp + apply_shor_period + shor_factor
 tests/
   conftest.py            # device fixture (parametrises over available devices)
   test_assert.py
@@ -153,6 +160,7 @@ tests/
   test_measure.py
   test_qft.py
   test_grover.py
+  test_shor.py
   test_import.py         # phase-0 smoke test: package imports
 pyproject.toml
 Makefile
