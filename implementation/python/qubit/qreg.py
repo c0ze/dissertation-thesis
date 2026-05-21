@@ -450,3 +450,25 @@ class Qreg:
         from . import measure
 
         return measure.dump(self, threshold=threshold)
+
+    # ---- QFT (Phase 6) --------------------------------------------------
+
+    def apply_qft(self, start: int = 0, n: int | None = None) -> None:
+        """Apply the forward QFT to qubits ``[start, start + n)``.
+
+        See :func:`qubit.qft.apply_qft`.
+        """
+        from . import qft
+
+        qft.apply_qft(self, start, n)
+
+    def apply_qft_inverse(
+        self, start: int = 0, n: int | None = None
+    ) -> None:
+        """Apply the inverse QFT to qubits ``[start, start + n)``.
+
+        See :func:`qubit.qft.apply_qft_inverse`.
+        """
+        from . import qft
+
+        qft.apply_qft_inverse(self, start, n)

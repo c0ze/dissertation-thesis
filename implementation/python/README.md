@@ -9,7 +9,7 @@ with a CPU fallback.
 
 ## Status
 
-**Phase 0+1+2+3+4+5 complete.** This ships:
+**Phase 0+1+2+3+4+5+6 complete.** This ships:
 
 - The package scaffold (`pyproject.toml`, `uv`-managed env, `ruff` +
   `mypy` + `pytest` configured)
@@ -35,11 +35,16 @@ with a CPU fallback.
   `|amp|^2`), `sample_distribution` (snapshot + restore so the
   original isn't mutated), `clone` (independent amp + RNG state),
   `dump` (structured non-zero amplitudes list).
+- Quantum Fourier Transform: `apply_qft` (forward, with final
+  bit-reversal swaps so output is in natural binary order) and
+  `apply_qft_inverse` (true inverse with negative phase angles in
+  reverse loop order, not three forward applications). Sub-register
+  via `start=` / `n=` kwargs.
 - Both function-style (`apply_h(q, 0)`) and method-style
-  (`q.apply_h(0)`) call shapes for every gate / measurement op.
-- Tests for everything above (315 passing)
+  (`q.apply_h(0)`) call shapes for every gate / measurement op / QFT.
+- Tests for everything above (356 passing)
 
-**Not yet implemented:** QFT, Grover, Shor, the CLI demo.
+**Not yet implemented:** Grover, Shor, the CLI demo.
 
 ## Quickstart
 
@@ -126,6 +131,7 @@ qubit/
   gates_controlled.py    # apply_cu + cnot/cz/controlled_phase/swap
   gates_multi.py         # apply_multi_controlled_z + apply_multi_controlled_x
   measure.py             # measure_qubit + measure_all + sample_distribution + clone + dump
+  qft.py                 # apply_qft + apply_qft_inverse (with bit-reversal swaps)
 tests/
   conftest.py            # device fixture (parametrises over available devices)
   test_assert.py
@@ -138,6 +144,7 @@ tests/
   test_gates_controlled.py
   test_gates_multi.py
   test_measure.py
+  test_qft.py
   test_import.py         # phase-0 smoke test: package imports
 pyproject.toml
 Makefile
