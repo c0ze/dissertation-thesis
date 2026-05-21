@@ -54,11 +54,32 @@ static void test_continued_fraction_simple_period(void) {
     TEST_ASSERT_EQUAL_UINT64(16, den);
 }
 
+static void test_is_power_of_two(void) {
+    TEST_ASSERT_TRUE (is_power_of_two(1));
+    TEST_ASSERT_TRUE (is_power_of_two(2));
+    TEST_ASSERT_TRUE (is_power_of_two(4));
+    TEST_ASSERT_TRUE (is_power_of_two(1024));
+    TEST_ASSERT_FALSE(is_power_of_two(0));
+    TEST_ASSERT_FALSE(is_power_of_two(3));
+    TEST_ASSERT_FALSE(is_power_of_two(6));
+    TEST_ASSERT_FALSE(is_power_of_two(1023));
+}
+
+static void test_ilog2_u32(void) {
+    TEST_ASSERT_EQUAL_INT( 0, ilog2_u32(1));
+    TEST_ASSERT_EQUAL_INT( 1, ilog2_u32(2));
+    TEST_ASSERT_EQUAL_INT( 2, ilog2_u32(4));
+    TEST_ASSERT_EQUAL_INT(10, ilog2_u32(1024));
+    TEST_ASSERT_EQUAL_INT(20, ilog2_u32(1 << 20));
+}
+
 void register_tests(void) {
     RUN_TEST(test_gcd_basics);
     RUN_TEST(test_mod_pow_basics);
     RUN_TEST(test_continued_fraction_pi);
     RUN_TEST(test_continued_fraction_simple_period);
+    RUN_TEST(test_is_power_of_two);
+    RUN_TEST(test_ilog2_u32);
 }
 
 TEST_RUNNER_MAIN()

@@ -14,4 +14,7 @@ uint64_t mod_pow(uint64_t base, uint64_t exp, uint64_t mod);
 void continued_fraction(double x, uint64_t max_denominator,
                         uint64_t *num, uint64_t *den);
 
+int is_power_of_two(int x);
+int ilog2_u32      (uint32_t x);   /* requires x is a power of two */
+
 #endif

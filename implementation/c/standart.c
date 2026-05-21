@@ -56,3 +56,14 @@ void continued_fraction(double x, uint64_t max_denominator,
     *num = best_h;
     *den = best_k;
 }
+
+int is_power_of_two(int x) {
+    return x > 0 && (x & (x - 1)) == 0;
+}
+
+int ilog2_u32(uint32_t x) {
+    /* Precondition: x is a power of two and nonzero. */
+    int r = 0;
+    while (x > 1) { x >>= 1; r++; }
+    return r;
+}
