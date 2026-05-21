@@ -58,5 +58,19 @@ double qreg_norm(const qreg *q) {
     return global;
 }
 
-/* prob_of lands in Task 14. */
-double prob_of       (const qreg *q, size_t basis)  { (void)q; (void)basis; return 0.0; }
+double prob_of(const qreg *q, size_t basis) {
+    QREG_ASSERT(q != NULL, "prob_of: q is NULL");
+    QREG_ASSERT(basis < ((size_t)1 << q->n_qubits),
+                "prob_of: basis out of range");
+    int owning_rank = (int)(basis >> (q->n_qubits - q->p));
+    double local = 0.0;
+    if (q->rank == owning_rank) {
+        size_t off = basis & (q->local_size - 1);
+        double r  = creal(q->amp[off]);
+        double im = cimag(q->amp[off]);
+        local = r*r + im*im;
+    }
+    double global = 0.0;
+    MPI_Allreduce(&local, &global, 1, MPI_DOUBLE, MPI_SUM, q->comm);
+    return global;
+}

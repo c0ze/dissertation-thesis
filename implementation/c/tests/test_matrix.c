@@ -79,6 +79,22 @@ static void test_init_basis_normalisation(void) {
     qreg_destroy(q);
 }
 
+static void test_norm_of_basis_state(void) {
+    qreg *q = qreg_create(4, MPI_COMM_WORLD);
+    qreg_init_basis(q, 5);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, qreg_norm(q));
+    qreg_destroy(q);
+}
+
+static void test_prob_of_basis_state(void) {
+    qreg *q = qreg_create(4, MPI_COMM_WORLD);
+    qreg_init_basis(q, 5);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 5));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.0, prob_of(q, 0));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 0.0, prob_of(q, 7));
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -89,6 +105,8 @@ void register_tests(void) {
     RUN_TEST(test_init_basis_zero);
     RUN_TEST(test_init_basis_arbitrary);
     RUN_TEST(test_init_basis_normalisation);
+    RUN_TEST(test_norm_of_basis_state);
+    RUN_TEST(test_prob_of_basis_state);
 }
 
 TEST_RUNNER_MAIN()
