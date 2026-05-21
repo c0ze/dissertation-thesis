@@ -9,14 +9,18 @@ with a CPU fallback.
 
 ## Status
 
-**Phase 0+1 complete.** This ships:
+**Phase 0+1+2 complete.** This ships:
 
 - The package scaffold (`pyproject.toml`, `uv`-managed env, `ruff` +
   `mypy` + `pytest` configured)
 - The `Qreg` class with construction, accessors, and the qubit-axis
   helper
 - Memory-preflight helpers
-- Tests for everything above
+- `qubit.standart` arithmetic helpers (`gcd_u64`, `mod_pow`,
+  `continued_fraction`, `is_power_of_two`, `ilog2_u32`) -- Python
+  builtins (`math.gcd`, `pow`, `fractions.Fraction.limit_denominator`)
+  wrapped with `qubit:`-prefixed validation
+- Tests for everything above (162 passing)
 
 **Not yet implemented:** gates (`apply_*`), measurement
 (`measure_qubit`, `measure_all`, `sample_distribution`), QFT, Grover,
@@ -90,6 +94,7 @@ qubit/
   _memory.py             # estimate_state_bytes, estimate_peak_bytes, preflight
   _assert.py             # qubit:-prefixed ValueError/TypeError helpers
   qreg.py                # Qreg class
+  standart.py            # arithmetic helpers (gcd, mod_pow, continued_fraction, ...)
 tests/
   conftest.py            # device fixture (parametrises over available devices)
   test_assert.py
@@ -97,6 +102,7 @@ tests/
   test_device.py
   test_memory.py
   test_qreg.py
+  test_standart.py
   test_import.py         # phase-0 smoke test: package imports
 pyproject.toml
 Makefile
@@ -107,12 +113,11 @@ The underscore-prefixed modules are package-private; external callers
 should import only from `qubit` (the top-level `__init__.py`
 re-exports the public surface).
 
-## Why does `standart.go` / `standart.c` exist but `standart.py` doesn't yet?
-
-The misspelled filename is parity with `/c`'s 2004 spelling and will
-appear in Phase 2 (arithmetic helpers: GCD, mod_pow, mul_mod,
-continued_fraction). Phase 0+1 has no arithmetic to factor out, so
-the file isn't created yet.
+The misspelled `standart.py` filename is deliberate parity with `/c`'s
+2004 spelling and the `/go` sibling. The function names inside use
+modern snake_case (`gcd_u64`, `mod_pow`, `continued_fraction`,
+`is_power_of_two`, `ilog2_u32`); the `_u64` / `_u32` suffixes are
+preserved as visual cues even though Python ints have no width limit.
 
 ## Design state
 
