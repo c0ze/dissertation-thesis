@@ -98,12 +98,26 @@ jobs:
 
       - name: Verify the non-power-of-two NP guard fails fast
         working-directory: implementation/original
+        # GitHub Actions runs each `run:` step under bash with
+        # `-e -o pipefail`. Without disabling -e around the failing
+        # command substitution, the step would abort BEFORE we get a
+        # chance to capture rc and inspect the output. The +e/-e
+        # toggle confines the leniency to the one command we expect
+        # to fail; everything around it keeps strict-mode semantics.
+        shell: bash
         run: |
-          if make run NP=3 2>&1 | grep -q "unsafe for this demo"; then
-            echo "OK: makefile guard emitted the expected error message"
-          else
-            echo "FAIL: NP=3 did not surface the unsafe-NP guard"
+          set +e
+          out=$(make run NP=3 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          echo "exit code: $rc"
+          if [ "$rc" -eq 0 ]; then
+            echo "FAIL: NP=3 unexpectedly succeeded"
             exit 1
           fi
-          # `make run NP=3` is expected to fail with exit code 2.
-          ! make run NP=3 >/dev/null 2>&1
+          if ! printf '%s' "$out" | grep -q "unsafe for this demo"; then
+            echo "FAIL: NP=3 did not surface the unsafe-NP guard text"
+            exit 1
+          fi
+          echo "OK: makefile guard emitted the expected error and non-zero exit"

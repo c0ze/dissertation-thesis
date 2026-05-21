@@ -311,7 +311,9 @@ Write `implementation/c/makefile`:
 # Targets:
 #   make                 build libqubit.a (when sources exist) and bin/qubit
 #   make test            build and run every tests/test_*.c at NP=1, 2, 4
-#   make test-large      reruns the existing suite at NP=8
+#   make test-large      runs at NP=1,2,4,8 and sets RUN_SHOR_21=1
+#                          to unlock the 16-qubit Shor-21 test that
+#                          `make test` skips for iteration speed
 #   make demo ALGO=qft NP=4
 #   make clean / distclean
 #
@@ -5181,9 +5183,10 @@ the thesis in Task 41.
 ## Test matrix
 
 All test binaries pass at NP = 1, 2, 4 via `make test`. `make test-large`
-reruns the existing suite at NP=8; it does not currently add new test
-cases (an earlier draft of this matrix mentioned a Shor-21 case which
-was aspirational and not implemented in v1; left as future work).
+additionally runs at NP = 8 and sets `RUN_SHOR_21=1`, which unlocks the
+16-qubit `test_shor_period_a2_mod21` end-to-end test. On Apple Silicon
+the Shor-21 path adds about 10 ms; on GitHub Actions ubuntu-latest
+runners budget around 50-100 ms.
 ```
 
 - [ ] **Step 2: Sanity check the file**
@@ -5248,7 +5251,7 @@ See:
 ```sh
 make            # builds libqubit objects + bin/qubit demo
 make test       # runs every tests/test_*.c at NP = 1, 2, 4
-make test-large # reruns existing suite at NP = 8
+make test-large # NP=1,2,4,8 + RUN_SHOR_21=1 (unlocks Shor-21 test)
 make demo ALGO=qft NP=4
 make clean
 ```

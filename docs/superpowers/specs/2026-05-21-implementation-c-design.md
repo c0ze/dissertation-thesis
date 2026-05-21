@@ -484,16 +484,15 @@ asserts that exit code at NP=1, 2, 4 (and 8 under
 | `test_standart` | gcd vs reference; mod_pow vs ground truth; continued_fraction finds 22/7 from $\pi$, 355/113 from $\pi$, $s/r$ for known periods |
 | `test_qft` | QFT on 1 qubit equals $H$; QFT $\cdot$ QFT$^{-1}$ = I on 4 qubits; QFT of $\lvert 0...0\rangle$ is uniform $\lvert+\ldots+\rangle$; QFT of a known periodic input has all mass on multiples of $N/r$ |
 | `test_grover` | Single marked item in $N=16$, $\geq 0.99$ success probability after $\lfloor\pi/4\sqrt{16}\rfloor = 3$ iterations; 4 marked items in $N=16$ needs $\lfloor\pi/4\cdot 2\rfloor = 1$ iteration; over-iterating reduces success (proves the optimum) |
-| `test_shor` | mod_pow consistency with gcd; period of $a^x \bmod 15$ for $a=7$ is 4; **modular_exp leaves $y \ge N$ unchanged (the reversibility-preserving pass-through from §5.5)**; factoring $N=15 \to \{3, 5\}$. (An earlier draft of this row also listed factoring $N=21 \to \{3, 7\}$ under `make test-large`; that case was aspirational and was not implemented in v1 --- it would need a ~16-qubit register and is left as future work, consistent with `implementation/c/assessment.md`.) |
+| `test_shor` | mod_pow consistency with gcd; period of $a^x \bmod 15$ for $a=7$ is 4; **modular_exp leaves $y \ge N$ unchanged (the reversibility-preserving pass-through from §5.5)**; factoring $N=15 \to \{3, 5\}$; period of $a^x \bmod 21$ for $a=2$ divides 6 (16-qubit register, gated behind `RUN_SHOR_21=1` which `make test-large` sets) |
 
 ### 7.4 Test runs
 
 `make test` runs each test executable at NP=1, 2, 4. Failure at any NP
-fails the suite. `make test-large` reruns the existing suite at NP=8.
-(An earlier draft of this section advertised a "Shor-21" case under
-test-large; that was aspirational and was not implemented in v1. See
-`implementation/c/assessment.md` for the canonical statement of
-coverage.)
+fails the suite. `make test-large` additionally runs at NP=8 and sets
+`RUN_SHOR_21=1`, which unlocks the 16-qubit `test_shor_period_a2_mod21`
+test (the Shor-21 case). `RUN_SHOR_21` is forwarded to ranks via
+`mpirun -x` so every rank sees the same value.
 
 `make check` is preserved as a fast smoke test (Bell state preparation at
 NP=4) for parity with `/original`.
@@ -512,7 +511,7 @@ In `tests/test_assert.h`:
 ```
 make                  # libqubit.a + bin/qubit (single demo binary)
 make test             # builds tests, runs at NP=1, 2, 4
-make test-large       # reruns existing suite at NP=8
+make test-large       # NP=1,2,4,8 + sets RUN_SHOR_21=1 (unlocks 16-qubit Shor-21 test)
 make demo ALGO=qft NP=4
 make check            # quick smoke-test (Bell state at NP=4)
 make clean
