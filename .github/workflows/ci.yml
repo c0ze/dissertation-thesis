@@ -121,3 +121,38 @@ jobs:
             exit 1
           fi
           echo "OK: makefile guard emitted the expected error and non-zero exit"
+
+  go-tests:
+    name: implementation/go -- make test + test-race
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: go build
+        working-directory: implementation/go
+        run: go build ./...
+      - name: go vet
+        working-directory: implementation/go
+        run: go vet ./...
+      - name: go test
+        working-directory: implementation/go
+        run: go test ./...
+      - name: go test -race
+        working-directory: implementation/go
+        run: go test -race ./...
+
+  go-tests-shor-21:
+    name: implementation/go -- Shor-21 large test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: go test with RUN_SHOR_21=1
+        working-directory: implementation/go
+        run: RUN_SHOR_21=1 go test ./qubit/ -run TestShorPeriodA2Mod21 -v
