@@ -379,10 +379,14 @@ int measure_qubit(qreg *q, int target) {
     }
     double p0 = 0.0;
     MPI_Allreduce(&local_p0, &p0, 1, MPI_DOUBLE, MPI_SUM, q->comm);
-    /* 2. Rank 0 samples; broadcast the outcome. */
+    /* 2. Rank 0 samples; broadcast the outcome.
+     *    Use (RAND_MAX + 1.0) in the divisor so u lies in [0, 1) and
+     *    never lands on the boundary -- otherwise (p0 == 1) followed
+     *    by u == 1.0 would select outcome=1 with renormalisation by
+     *    1/sqrt(1 - p0) = 1/sqrt(0). */
     int outcome = 0;
     if (q->rank == 0) {
-        double u = (double)rand() / (double)RAND_MAX;
+        double u = (double)rand() / ((double)RAND_MAX + 1.0);
         outcome = (u < p0) ? 0 : 1;
     }
     MPI_Bcast(&outcome, 1, MPI_INT, 0, q->comm);
@@ -413,8 +417,12 @@ size_t measure_all(qreg *q) {
     double prefix = 0.0;
     MPI_Exscan(&local_total, &prefix, 1, MPI_DOUBLE, MPI_SUM, q->comm);
     if (q->rank == 0) prefix = 0.0;
+    /* u must lie in [0, 1) -- using ((double)RAND_MAX + 1.0) in the
+     * divisor avoids u == 1.0, which would fall outside every rank's
+     * cumulative interval and leave chosen_rank == -1, then make
+     * MPI_Bcast(..., root=-1, ...) undefined.                        */
     double u = 0.0;
-    if (q->rank == 0) u = (double)rand() / (double)RAND_MAX;
+    if (q->rank == 0) u = (double)rand() / ((double)RAND_MAX + 1.0);
     MPI_Bcast(&u, 1, MPI_DOUBLE, 0, q->comm);
 
     size_t chosen_global = 0;

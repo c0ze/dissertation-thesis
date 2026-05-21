@@ -71,5 +71,10 @@ the thesis in Task 41.
 ## Test matrix
 
 All test binaries pass at NP = 1, 2, 4 via `make test`, and additionally
-at NP = 8 via `make test-large` (Shor-21 case excluded from the standard
-run for runtime reasons).
+at NP = 8 via `make test-large`. Note: `make test-large` reruns the
+existing suite at NP=8; it does **not** currently add new test cases
+(an earlier draft of this matrix and the spec wording for "Shor-21" /
+"larger N" coverage was aspirational). End-to-end factoring is only
+exercised on N=15 in `test_shor.c::test_shor_factor_15`. Adding a
+Shor-21 case would need a 13-qubit register and ~30s of wall clock
+per attempt; left as future work.

@@ -4,7 +4,7 @@
 # Targets:
 #   make                 build libqubit.a (when sources exist) and bin/qubit
 #   make test            build and run every tests/test_*.c at NP=1, 2, 4
-#   make test-large      additionally run at NP=8 (Shor-21 etc.)
+#   make test-large      additionally rerun existing suite at NP=8
 #   make demo ALGO=qft NP=4
 #   make clean / distclean
 #

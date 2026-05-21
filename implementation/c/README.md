@@ -28,7 +28,7 @@ See:
 ```sh
 make            # builds libqubit objects + bin/qubit demo
 make test       # runs every tests/test_*.c at NP = 1, 2, 4
-make test-large # additionally NP = 8 (Shor-21 etc.)
+make test-large # additionally NP = 8 (reruns existing suite)
 make demo ALGO=qft NP=4
 make clean
 ```
@@ -44,11 +44,15 @@ int main(int argc, char **argv) {
     qreg *q = qreg_create(3, MPI_COMM_WORLD);
     qreg_init_basis(q, 0);
     apply_qft(q, 0, 3);
-    /* prob_of(q, k) returns the same value on every rank.            */
     int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank == 0)
-        for (size_t i = 0; i < 8; i++)
-            printf("prob(|%zu>) = %.4f\n", i, prob_of(q, i));
+    /* prob_of is collective (MPI_Allreduce internally) — every rank
+     * must call it. Printing then gated to rank 0 to avoid duplicate
+     * output. The earlier draft of this example had the call inside
+     * the rank-0 guard, which would deadlock at NP > 1.              */
+    for (size_t i = 0; i < 8; i++) {
+        double p = prob_of(q, i);
+        if (rank == 0) printf("prob(|%zu>) = %.4f\n", i, p);
+    }
     qreg_destroy(q);
     MPI_Finalize();
 }
