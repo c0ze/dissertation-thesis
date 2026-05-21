@@ -38,5 +38,15 @@ size_t local_to_global(const qreg *q, size_t local_index) {
 }
 
 void exchange_amplitudes(qreg *q, int partner_rank, complex double *recv_buf) {
-    (void)q; (void)partner_rank; (void)recv_buf;
+    QREG_ASSERT(q != NULL, "exchange_amplitudes: q is NULL");
+    QREG_ASSERT(recv_buf != NULL, "exchange_amplitudes: recv_buf is NULL");
+    QREG_ASSERT(partner_rank >= 0 && partner_rank < q->n_procs,
+                "exchange_amplitudes: partner_rank out of range");
+    QREG_ASSERT(partner_rank != q->rank,
+                "exchange_amplitudes: partner is self");
+    MPI_Sendrecv(q->amp,    (int)q->local_size, MPI_C_DOUBLE_COMPLEX,
+                 partner_rank, 0,
+                 recv_buf,  (int)q->local_size, MPI_C_DOUBLE_COMPLEX,
+                 partner_rank, 0,
+                 q->comm, MPI_STATUS_IGNORE);
 }
