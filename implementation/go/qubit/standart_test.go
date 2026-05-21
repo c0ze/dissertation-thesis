@@ -21,6 +21,25 @@ func TestGCD(t *testing.T) {
 	}
 }
 
+func TestModPow(t *testing.T) {
+	cases := []struct {
+		base, exp, mod, want uint64
+	}{
+		{2, 10, 1000, 24},
+		{7, 0, 15, 1},
+		{0, 0, 7, 1},
+		{2, 1 << 10, 1000000007, 812734592},    // mod within uint32
+		{1<<32 + 1, 5, 1<<33 - 1, 5100273671}, // mod over uint32
+	}
+	for _, c := range cases {
+		got := ModPow(c.base, c.exp, c.mod)
+		if got != c.want {
+			t.Errorf("ModPow(%d, %d, %d) = %d, want %d",
+				c.base, c.exp, c.mod, got, c.want)
+		}
+	}
+}
+
 func TestMulMod(t *testing.T) {
 	cases := []struct {
 		a, b, mod, want uint64

@@ -41,3 +41,21 @@ func MulMod(a, b, mod uint64) uint64 {
 	}
 	return result
 }
+
+// ModPow returns base^exp mod mod using square-and-multiply over MulMod.
+// 0^0 conventionally returns 1.
+func ModPow(base, exp, mod uint64) uint64 {
+	if mod == 1 {
+		return 0
+	}
+	result := uint64(1)
+	base %= mod
+	for exp > 0 {
+		if exp&1 == 1 {
+			result = MulMod(result, base, mod)
+		}
+		exp >>= 1
+		base = MulMod(base, base, mod)
+	}
+	return result
+}
