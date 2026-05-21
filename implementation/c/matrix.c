@@ -299,3 +299,11 @@ void apply_controlled_phase(qreg *q, int control, int target, double theta) {
     complex double u[2][2] = { {1, 0}, {0, cexp(I * theta)} };
     apply_cu(q, control, target, u);
 }
+
+void apply_swap(qreg *q, int a, int b) {
+    QREG_ASSERT(q != NULL, "apply_swap: q is NULL");
+    QREG_ASSERT(a != b, "apply_swap: a == b");
+    apply_cnot(q, a, b);
+    apply_cnot(q, b, a);
+    apply_cnot(q, a, b);
+}

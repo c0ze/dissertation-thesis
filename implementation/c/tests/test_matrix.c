@@ -315,6 +315,33 @@ static void test_controlled_phase_zero_is_identity(void) {
     qreg_destroy(q);
 }
 
+static void test_swap_exchanges_basis_indices(void) {
+    /* Start from |01>; swap qubits 0,1 -> |10>. */
+    qreg *q = qreg_create(2, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }
+    if (!is_local_qubit(q, 0) || !is_local_qubit(q, 1)) {
+        qreg_destroy(q); TEST_PASS(); return;
+    }
+    qreg_init_basis(q, 1);
+    apply_swap(q, 0, 1);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 2));
+    qreg_destroy(q);
+}
+
+static void test_swap_self_is_identity(void) {
+    /* For a != b verify swap*swap = id. */
+    qreg *q = qreg_create(3, MPI_COMM_WORLD);
+    qreg_init_basis(q, 5);
+    int a = 0, b = 1;
+    if (!is_local_qubit(q, a) || !is_local_qubit(q, b)) {
+        qreg_destroy(q); TEST_PASS(); return;
+    }
+    apply_swap(q, a, b);
+    apply_swap(q, a, b);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 5));
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -344,6 +371,8 @@ void register_tests(void) {
     RUN_TEST(test_cnot_local_makes_bell);
     RUN_TEST(test_cz_phase_on_11);
     RUN_TEST(test_controlled_phase_zero_is_identity);
+    RUN_TEST(test_swap_exchanges_basis_indices);
+    RUN_TEST(test_swap_self_is_identity);
 }
 
 TEST_RUNNER_MAIN()

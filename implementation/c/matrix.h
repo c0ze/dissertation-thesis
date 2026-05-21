@@ -61,4 +61,6 @@ void apply_cnot            (qreg *q, int control, int target);
 void apply_cz              (qreg *q, int control, int target);
 void apply_controlled_phase(qreg *q, int control, int target, double theta);
 
+void apply_swap(qreg *q, int a, int b);
+
 #endif /* MATRIX_H */
