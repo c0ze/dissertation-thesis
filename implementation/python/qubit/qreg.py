@@ -34,7 +34,8 @@ Key invariants:
 
 from __future__ import annotations
 
-from typing import Final
+from collections.abc import Callable
+from typing import Any, Final
 
 import torch
 
@@ -472,3 +473,20 @@ class Qreg:
         from . import qft
 
         qft.apply_qft_inverse(self, start, n)
+
+    # ---- Grover (Phase 7) -----------------------------------------------
+
+    def apply_grover(
+        self,
+        n_qubits: int,
+        oracle: Callable[[Qreg, Any], None],
+        user: Any = None,
+        iterations: int | None = None,
+    ) -> None:
+        """Run Grover on qubits ``[0, n_qubits)`` of this register.
+
+        See :func:`qubit.grover.apply_grover`.
+        """
+        from . import grover
+
+        grover.apply_grover(self, n_qubits, oracle, user, iterations)

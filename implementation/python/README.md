@@ -9,7 +9,7 @@ with a CPU fallback.
 
 ## Status
 
-**Phase 0+1+2+3+4+5+6 complete.** This ships:
+**Phase 0+1+2+3+4+5+6+7 complete.** This ships:
 
 - The package scaffold (`pyproject.toml`, `uv`-managed env, `ruff` +
   `mypy` + `pytest` configured)
@@ -40,11 +40,17 @@ with a CPU fallback.
   `apply_qft_inverse` (true inverse with negative phase angles in
   reverse loop order, not three forward applications). Sub-register
   via `start=` / `n=` kwargs.
+- Grover's amplitude amplification: `apply_grover(q, n_qubits,
+  oracle, user=None, iterations=None)`. The oracle is a callable
+  `(Qreg, Any) -> None` that phase-flips marked basis states; the
+  default iteration count is the optimum for one marked item
+  (`floor(pi/4 * sqrt(N))`).
 - Both function-style (`apply_h(q, 0)`) and method-style
-  (`q.apply_h(0)`) call shapes for every gate / measurement op / QFT.
-- Tests for everything above (356 passing)
+  (`q.apply_h(0)`) call shapes for every gate / measurement op /
+  QFT / Grover.
+- Tests for everything above (376 passing)
 
-**Not yet implemented:** Grover, Shor, the CLI demo.
+**Not yet implemented:** Shor, the CLI demo.
 
 ## Quickstart
 
@@ -132,6 +138,7 @@ qubit/
   gates_multi.py         # apply_multi_controlled_z + apply_multi_controlled_x
   measure.py             # measure_qubit + measure_all + sample_distribution + clone + dump
   qft.py                 # apply_qft + apply_qft_inverse (with bit-reversal swaps)
+  grover.py              # apply_grover (uniform prep + oracle/diffusion iterations)
 tests/
   conftest.py            # device fixture (parametrises over available devices)
   test_assert.py
@@ -145,6 +152,7 @@ tests/
   test_gates_multi.py
   test_measure.py
   test_qft.py
+  test_grover.py
   test_import.py         # phase-0 smoke test: package imports
 pyproject.toml
 Makefile

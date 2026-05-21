@@ -4,7 +4,7 @@ Sibling of ``implementation/c`` (MPI) and ``implementation/go``
 (goroutines). The PyTorch backend gives device-agnostic GPU support:
 the same code runs on NVIDIA CUDA, AMD ROCm, Apple Metal (MPS), and CPU.
 
-Through Phase 6 this ships: the data model (:class:`Qreg` construction,
+Through Phase 7 this ships: the data model (:class:`Qreg` construction,
 accessors, the qubit-axis helper), the ``standart`` arithmetic helpers
 (gcd, mod_pow, continued_fraction, is_power_of_two, ilog2_u32), the
 single-qubit gate primitives (``apply_u`` plus the standard named
@@ -13,9 +13,9 @@ gates), the controlled and multi-controlled gates (``apply_cu`` /
 ``apply_swap`` / ``apply_multi_controlled_z`` /
 ``apply_multi_controlled_x``), the measurement primitives
 (``measure_qubit`` / ``measure_all`` / ``sample_distribution`` /
-``clone`` / ``dump``), and the Quantum Fourier Transform
-(``apply_qft`` / ``apply_qft_inverse``). Grover and Shor land in
-later phases.
+``clone`` / ``dump``), the Quantum Fourier Transform
+(``apply_qft`` / ``apply_qft_inverse``), and Grover's amplitude
+amplification (``apply_grover``). Shor lands in the next phase.
 
 Public API surface:
 
@@ -59,6 +59,7 @@ from .gates_single import (
     apply_y,
     apply_z,
 )
+from .grover import apply_grover
 from .measure import (
     clone,
     dump,
@@ -98,6 +99,7 @@ __all__ = [
     "apply_controlled_phase",
     "apply_cu",
     "apply_cz",
+    "apply_grover",
     "apply_h",
     "apply_multi_controlled_x",
     "apply_multi_controlled_z",
