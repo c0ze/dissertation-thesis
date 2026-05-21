@@ -30,7 +30,7 @@ BINDIR     := $(BUILDDIR)/bin
 TESTDIR    := $(BUILDDIR)/tests
 
 # Library sources will be filled in as later tasks add files.
-LIB_SRCS   :=
+LIB_SRCS   := standart.c
 LIB_OBJS   := $(LIB_SRCS:%.c=$(BUILDDIR)/%.o)
 
 # Test files. Each one becomes its own binary.
