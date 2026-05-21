@@ -179,6 +179,51 @@ static void test_pauli_z_on_one_negates(void) {
     qreg_destroy(q);
 }
 
+static void test_s_is_phase_pi_over_2(void) {
+    /* S^2 = Z. Apply via H-sandwich so the phase shows in probability. */
+    qreg *qA = qreg_create(2, MPI_COMM_WORLD);
+    if (!qA) { TEST_PASS(); return; }
+    qreg_init_basis(qA, 0);
+    apply_h(qA, 0); apply_s(qA, 0); apply_s(qA, 0); apply_h(qA, 0);
+
+    qreg *qB = qreg_create(2, MPI_COMM_WORLD);
+    qreg_init_basis(qB, 0);
+    apply_h(qB, 0); apply_z(qB, 0); apply_h(qB, 0);
+
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, prob_of(qB, 0), prob_of(qA, 0));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, prob_of(qB, 1), prob_of(qA, 1));
+    qreg_destroy(qA);
+    qreg_destroy(qB);
+}
+
+static void test_t_quartic_is_z(void) {
+    /* T^4 = Z. */
+    qreg *qA = qreg_create(2, MPI_COMM_WORLD);
+    if (!qA) { TEST_PASS(); return; }
+    qreg_init_basis(qA, 0);
+    apply_h(qA, 0);
+    apply_t(qA, 0); apply_t(qA, 0); apply_t(qA, 0); apply_t(qA, 0);
+    apply_h(qA, 0);
+
+    qreg *qB = qreg_create(2, MPI_COMM_WORLD);
+    qreg_init_basis(qB, 0);
+    apply_h(qB, 0); apply_z(qB, 0); apply_h(qB, 0);
+
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, prob_of(qB, 0), prob_of(qA, 0));
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, prob_of(qB, 1), prob_of(qA, 1));
+    qreg_destroy(qA);
+    qreg_destroy(qB);
+}
+
+static void test_apply_phase_zero_is_identity(void) {
+    qreg *q = qreg_create(2, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }
+    qreg_init_basis(q, 1);
+    apply_phase(q, 0, 0.0);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 1));
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -198,6 +243,9 @@ void register_tests(void) {
     RUN_TEST(test_pauli_y_on_zero);
     RUN_TEST(test_pauli_z_on_zero_is_identity);
     RUN_TEST(test_pauli_z_on_one_negates);
+    RUN_TEST(test_s_is_phase_pi_over_2);
+    RUN_TEST(test_t_quartic_is_z);
+    RUN_TEST(test_apply_phase_zero_is_identity);
 }
 
 TEST_RUNNER_MAIN()
