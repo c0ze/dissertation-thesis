@@ -30,9 +30,35 @@ static void test_mod_pow_basics(void) {
     TEST_ASSERT_EQUAL_UINT64(350687, mod_pow(2, 64, 1000003));
 }
 
+static void test_continued_fraction_pi(void) {
+    uint64_t num, den;
+    /* 22/7 is the first famous convergent of pi with denominator <= 100. */
+    continued_fraction(3.14159265358979323846, 100, &num, &den);
+    TEST_ASSERT_EQUAL_UINT64(22, num);
+    TEST_ASSERT_EQUAL_UINT64(7,  den);
+    /* 355/113 is the next, the famous Milü, with denominator <= 200. */
+    continued_fraction(3.14159265358979323846, 200, &num, &den);
+    TEST_ASSERT_EQUAL_UINT64(355, num);
+    TEST_ASSERT_EQUAL_UINT64(113, den);
+}
+
+static void test_continued_fraction_simple_period(void) {
+    uint64_t num, den;
+    /* 3/8 should round-trip exactly with max_denom >= 8. */
+    continued_fraction(3.0 / 8.0, 16, &num, &den);
+    TEST_ASSERT_EQUAL_UINT64(3, num);
+    TEST_ASSERT_EQUAL_UINT64(8, den);
+    /* 5/16 likewise. */
+    continued_fraction(5.0 / 16.0, 32, &num, &den);
+    TEST_ASSERT_EQUAL_UINT64(5,  num);
+    TEST_ASSERT_EQUAL_UINT64(16, den);
+}
+
 void register_tests(void) {
     RUN_TEST(test_gcd_basics);
     RUN_TEST(test_mod_pow_basics);
+    RUN_TEST(test_continued_fraction_pi);
+    RUN_TEST(test_continued_fraction_simple_period);
 }
 
 TEST_RUNNER_MAIN()
