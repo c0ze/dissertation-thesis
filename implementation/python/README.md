@@ -9,7 +9,7 @@ with a CPU fallback.
 
 ## Status
 
-**Phase 0+1+2+3 complete.** This ships:
+**Phase 0+1+2+3+4 complete.** This ships:
 
 - The package scaffold (`pyproject.toml`, `uv`-managed env, `ruff` +
   `mypy` + `pytest` configured)
@@ -23,13 +23,18 @@ with a CPU fallback.
 - Single-qubit gates: `apply_u` (the tensor-native workhorse via
   `tensordot` + `movedim`) plus `apply_h`, `apply_x`, `apply_y`,
   `apply_z`, `apply_s`, `apply_t`, `apply_phase`, `apply_rx`,
-  `apply_ry`, `apply_rz`. Both function-style (`apply_h(q, 0)`) and
-  method-style (`q.apply_h(0)`) call shapes are public.
-- Tests for everything above (215 passing)
+  `apply_ry`, `apply_rz`.
+- Controlled gates: `apply_cu` (the 4x4-block-diagonal workhorse via
+  permute + matmul + inverse-permute) plus `apply_cnot`, `apply_cz`,
+  `apply_controlled_phase`, `apply_swap` (three-CNOT identity).
+- Multi-controlled gates: `apply_multi_controlled_z` for phase-flip
+  diffusion and `apply_multi_controlled_x` (generalised Toffoli),
+  both implemented as vectorised mask/gather/scatter.
+- Both function-style (`apply_h(q, 0)`) and method-style
+  (`q.apply_h(0)`) call shapes for every gate.
+- Tests for everything above (279 passing)
 
-**Not yet implemented:** controlled gates (`apply_cu`, `apply_cnot`,
-`apply_cz`, `apply_controlled_phase`, `apply_swap`), multi-controlled
-gates, measurement (`measure_qubit`, `measure_all`,
+**Not yet implemented:** measurement (`measure_qubit`, `measure_all`,
 `sample_distribution`), QFT, Grover, Shor, the CLI demo.
 
 ## Quickstart
@@ -114,6 +119,8 @@ qubit/
   qreg.py                # Qreg class
   standart.py            # arithmetic helpers (gcd, mod_pow, continued_fraction, ...)
   gates_single.py        # apply_u + apply_h/x/y/z/s/t/phase/rx/ry/rz
+  gates_controlled.py    # apply_cu + cnot/cz/controlled_phase/swap
+  gates_multi.py         # apply_multi_controlled_z + apply_multi_controlled_x
 tests/
   conftest.py            # device fixture (parametrises over available devices)
   test_assert.py
@@ -123,6 +130,8 @@ tests/
   test_qreg.py
   test_standart.py
   test_gates_single.py
+  test_gates_controlled.py
+  test_gates_multi.py
   test_import.py         # phase-0 smoke test: package imports
 pyproject.toml
 Makefile

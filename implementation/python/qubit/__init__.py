@@ -4,15 +4,15 @@ Sibling of ``implementation/c`` (MPI) and ``implementation/go``
 (goroutines). The PyTorch backend gives device-agnostic GPU support:
 the same code runs on NVIDIA CUDA, AMD ROCm, Apple Metal (MPS), and CPU.
 
-Through Phase 3 this ships: the data model (:class:`Qreg` construction,
+Through Phase 4 this ships: the data model (:class:`Qreg` construction,
 accessors, the qubit-axis helper), the ``standart`` arithmetic helpers
-(gcd, mod_pow, continued_fraction, is_power_of_two, ilog2_u32), and the
-single-qubit gate primitives (``apply_u`` plus the standard named gates
-``apply_h`` / ``apply_x`` / ``apply_y`` / ``apply_z`` / ``apply_s`` /
-``apply_t`` / ``apply_phase`` / ``apply_rx`` / ``apply_ry`` /
-``apply_rz``). Controlled gates, multi-controlled gates, measurement
-(beyond ``prob_of`` / ``norm``), QFT, Grover, and Shor land in later
-phases.
+(gcd, mod_pow, continued_fraction, is_power_of_two, ilog2_u32), the
+single-qubit gate primitives (``apply_u`` plus the standard named
+gates), the controlled and multi-controlled gates (``apply_cu`` /
+``apply_cnot`` / ``apply_cz`` / ``apply_controlled_phase`` /
+``apply_swap`` / ``apply_multi_controlled_z`` /
+``apply_multi_controlled_x``). Measurement (beyond ``prob_of`` /
+``norm``), QFT, Grover, and Shor land in later phases.
 
 Public API surface:
 
@@ -32,6 +32,17 @@ Public API surface:
 from __future__ import annotations
 
 from ._axis import qubit_axis
+from .gates_controlled import (
+    apply_cnot,
+    apply_controlled_phase,
+    apply_cu,
+    apply_cz,
+    apply_swap,
+)
+from .gates_multi import (
+    apply_multi_controlled_x,
+    apply_multi_controlled_z,
+)
 from .gates_single import (
     apply_h,
     apply_phase,
@@ -69,12 +80,19 @@ __all__ = [
     "PROB_TOL_C64",
     "Qreg",
     "amp_tol_for",
+    "apply_cnot",
+    "apply_controlled_phase",
+    "apply_cu",
+    "apply_cz",
     "apply_h",
+    "apply_multi_controlled_x",
+    "apply_multi_controlled_z",
     "apply_phase",
     "apply_rx",
     "apply_ry",
     "apply_rz",
     "apply_s",
+    "apply_swap",
     "apply_t",
     "apply_u",
     "apply_x",

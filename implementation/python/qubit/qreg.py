@@ -337,3 +337,67 @@ class Qreg:
         from . import gates_single
 
         gates_single.apply_rz(self, target, theta)
+
+    # ---- two-qubit controlled gate methods (Phase 4) --------------------
+    #
+    # Same lazy-import discipline as the single-qubit methods. The
+    # function-style equivalents live in :mod:`qubit.gates_controlled`.
+
+    def apply_cu(
+        self, control: int, target: int, u: torch.Tensor
+    ) -> None:
+        """Apply a 2x2 controlled-unitary with ``u`` on the target qubit.
+
+        See :func:`qubit.gates_controlled.apply_cu` for the contract.
+        """
+        from . import gates_controlled
+
+        gates_controlled.apply_cu(self, control, target, u)
+
+    def apply_cnot(self, control: int, target: int) -> None:
+        """Apply controlled-NOT: flip ``target`` when ``control`` is 1."""
+        from . import gates_controlled
+
+        gates_controlled.apply_cnot(self, control, target)
+
+    def apply_cz(self, control: int, target: int) -> None:
+        """Apply controlled-Z: phase-flip when both qubits are 1."""
+        from . import gates_controlled
+
+        gates_controlled.apply_cz(self, control, target)
+
+    def apply_controlled_phase(
+        self, control: int, target: int, theta: float
+    ) -> None:
+        """Apply controlled-Phase: multiply ``|11>`` by ``e^{i theta}``."""
+        from . import gates_controlled
+
+        gates_controlled.apply_controlled_phase(
+            self, control, target, theta
+        )
+
+    def apply_swap(self, a: int, b: int) -> None:
+        """Exchange qubits ``a`` and ``b`` via the 3-CNOT decomposition."""
+        from . import gates_controlled
+
+        gates_controlled.apply_swap(self, a, b)
+
+    # ---- multi-controlled gate methods (Phase 4) ------------------------
+
+    def apply_multi_controlled_z(
+        self, controls: list[int] | tuple[int, ...]
+    ) -> None:
+        """Phase-flip when every listed control bit is 1."""
+        from . import gates_multi
+
+        gates_multi.apply_multi_controlled_z(self, controls)
+
+    def apply_multi_controlled_x(
+        self,
+        controls: list[int] | tuple[int, ...],
+        target: int,
+    ) -> None:
+        """Flip ``target`` when every listed control is 1 (generalised Toffoli)."""
+        from . import gates_multi
+
+        gates_multi.apply_multi_controlled_x(self, controls, target)
