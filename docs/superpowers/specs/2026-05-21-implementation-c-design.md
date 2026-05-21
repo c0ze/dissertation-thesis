@@ -484,7 +484,7 @@ asserts that exit code at NP=1, 2, 4 (and 8 under
 | `test_standart` | gcd vs reference; mod_pow vs ground truth; continued_fraction finds 22/7 from $\pi$, 355/113 from $\pi$, $s/r$ for known periods |
 | `test_qft` | QFT on 1 qubit equals $H$; QFT $\cdot$ QFT$^{-1}$ = I on 4 qubits; QFT of $\lvert 0...0\rangle$ is uniform $\lvert+\ldots+\rangle$; QFT of a known periodic input has all mass on multiples of $N/r$ |
 | `test_grover` | Single marked item in $N=16$, $\geq 0.99$ success probability after $\lfloor\pi/4\sqrt{16}\rfloor = 3$ iterations; 4 marked items in $N=16$ needs $\lfloor\pi/4\cdot 2\rfloor = 1$ iteration; over-iterating reduces success (proves the optimum) |
-| `test_shor` | mod_pow consistency with gcd; period of $a^x \bmod 15$ for $a=7$ is 4; **modular_exp leaves $y \ge N$ unchanged (the reversibility-preserving pass-through from §5.5)**; factoring $N=15 \to \{3, 5\}$; factoring $N=21 \to \{3, 7\}$ (requires ~16 qubits, runs at `make test-large`) |
+| `test_shor` | mod_pow consistency with gcd; period of $a^x \bmod 15$ for $a=7$ is 4; **modular_exp leaves $y \ge N$ unchanged (the reversibility-preserving pass-through from §5.5)**; factoring $N=15 \to \{3, 5\}$. (An earlier draft of this row also listed factoring $N=21 \to \{3, 7\}$ under `make test-large`; that case was aspirational and was not implemented in v1 --- it would need a ~16-qubit register and is left as future work, consistent with `implementation/c/assessment.md`.) |
 
 ### 7.4 Test runs
 
