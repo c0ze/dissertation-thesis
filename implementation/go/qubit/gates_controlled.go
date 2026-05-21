@@ -1,5 +1,7 @@
 package qubit
 
+import "math"
+
 // ApplyCU applies the controlled-U gate: when the control bit is 1,
 // apply the 2x2 unitary u to the target bit; otherwise leave the
 // amplitude pair unchanged.
@@ -41,4 +43,29 @@ func (q *Qreg) ApplyCNOT(control, target int) {
 		{0, 1},
 		{1, 0},
 	})
+}
+
+// ApplyCZ applies the controlled-Z gate.
+func (q *Qreg) ApplyCZ(control, target int) {
+	q.ApplyCU(control, target, [2][2]complex128{
+		{1, 0},
+		{0, -1},
+	})
+}
+
+// ApplyControlledPhase applies a phase rotation by theta on the |11> branch.
+func (q *Qreg) ApplyControlledPhase(control, target int, theta float64) {
+	q.ApplyCU(control, target, [2][2]complex128{
+		{1, 0},
+		{0, complex(math.Cos(theta), math.Sin(theta))},
+	})
+}
+
+// ApplySWAP exchanges the contents of two qubits. SWAP = CNOT(a,b)
+// then CNOT(b,a) then CNOT(a,b). Same decomposition as /c.
+func (q *Qreg) ApplySWAP(a, b int) {
+	assert(a != b, "ApplySWAP: a == b == %d", a)
+	q.ApplyCNOT(a, b)
+	q.ApplyCNOT(b, a)
+	q.ApplyCNOT(a, b)
 }

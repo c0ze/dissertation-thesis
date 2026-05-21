@@ -43,3 +43,26 @@ func TestApplyCUPanicsOnControlEqualsTarget(t *testing.T) {
 	}()
 	q.ApplyCU(1, 1, [2][2]complex128{{1, 0}, {0, 1}})
 }
+
+func TestApplyCZOnlyFlipsAllOnes(t *testing.T) {
+	q, _ := NewQreg(2)
+	q.InitBasis(3) // |11>
+	q.ApplyCZ(0, 1)
+	assertAmpNear(t, complex(-1, 0), q.amp[3], "CZ|11> amp[3]")
+}
+
+func TestApplyControlledPhasePiEqualsCZ(t *testing.T) {
+	q, _ := NewQreg(2)
+	q.InitBasis(3)
+	q.ApplyControlledPhase(0, 1, math.Pi)
+	assertAmpNear(t, complex(-1, 0), q.amp[3], "CPhase(pi)|11> amp[3]")
+}
+
+func TestApplySWAPExchanges(t *testing.T) {
+	q, _ := NewQreg(2)
+	q.InitBasis(1) // |01>
+	q.ApplySWAP(0, 1)
+	// SWAP exchanges bits 0 and 1 -> |10> = 2
+	assertAmpNear(t, complex(1, 0), q.amp[2], "SWAP|01> -> amp[2]")
+	assertAmpNear(t, complex(0, 0), q.amp[1], "SWAP|01> -> amp[1] zero")
+}
