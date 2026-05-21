@@ -31,7 +31,32 @@ void qreg_destroy(qreg *q) {
     free(q);
 }
 
-/* qreg_init_basis, qreg_norm, prob_of land in later tasks. */
-void   qreg_init_basis(qreg *q, size_t basis_state) { (void)q; (void)basis_state; }
-double qreg_norm     (const qreg *q)                { (void)q; return 0.0; }
+void qreg_init_basis(qreg *q, size_t basis_state) {
+    QREG_ASSERT(q != NULL, "qreg_init_basis: q is NULL");
+    QREG_ASSERT(basis_state < ((size_t)1 << q->n_qubits),
+                "qreg_init_basis: basis_state out of range");
+    /* zero everything */
+    for (size_t i = 0; i < q->local_size; i++) q->amp[i] = 0.0;
+    /* set the owning rank's amplitude to 1 */
+    int owning_rank = (int)(basis_state >> (q->n_qubits - q->p));
+    if (q->rank == owning_rank) {
+        size_t off = basis_state & (q->local_size - 1);
+        q->amp[off] = 1.0;
+    }
+}
+
+double qreg_norm(const qreg *q) {
+    QREG_ASSERT(q != NULL, "qreg_norm: q is NULL");
+    double local = 0.0;
+    for (size_t i = 0; i < q->local_size; i++) {
+        double r = creal(q->amp[i]);
+        double im = cimag(q->amp[i]);
+        local += r*r + im*im;
+    }
+    double global = 0.0;
+    MPI_Allreduce(&local, &global, 1, MPI_DOUBLE, MPI_SUM, q->comm);
+    return global;
+}
+
+/* prob_of lands in Task 14. */
 double prob_of       (const qreg *q, size_t basis)  { (void)q; (void)basis; return 0.0; }

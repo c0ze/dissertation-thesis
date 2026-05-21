@@ -25,6 +25,11 @@ ifeq ($(DEBUG),1)
     LDFLAGS += -fsanitize=address -fsanitize=undefined
 endif
 
+# Unity defaults to skipping double-precision assertions; we use
+# TEST_ASSERT_DOUBLE_WITHIN throughout the suite (amplitudes, norms,
+# probabilities), so we must opt back in.
+CFLAGS     += -DUNITY_INCLUDE_DOUBLE
+
 BUILDDIR   := build
 BINDIR     := $(BUILDDIR)/bin
 TESTDIR    := $(BUILDDIR)/tests
@@ -57,7 +62,7 @@ $(BUILDDIR)/%.o: %.c | dirs
 
 # Unity compiled separately with relaxed warnings.
 $(UNITY_OBJ): tests/unity/unity.c | dirs
-	$(MPICC) -std=c11 -O2 -w -c $< -o $@
+	$(MPICC) -std=c11 -O2 -w -DUNITY_INCLUDE_DOUBLE -c $< -o $@
 
 # Compile a test source plus the library plus Unity into a test binary.
 $(TESTDIR)/%: tests/%.c $(LIB_OBJS) $(UNITY_OBJ) | dirs
