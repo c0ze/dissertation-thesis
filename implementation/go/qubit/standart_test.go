@@ -1,6 +1,9 @@
 package qubit
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestGCD(t *testing.T) {
 	cases := []struct {
@@ -31,6 +34,25 @@ func TestContinuedFraction(t *testing.T) {
 	num, den = ContinuedFraction(1.0/3.0, 10)
 	if num != 1 || den != 3 {
 		t.Errorf("ContinuedFraction(1/3, 10) = %d/%d, want 1/3", num, den)
+	}
+	// x <= 0 safety hatch (Shor's QFT readout c=0 case): returns (0, 1).
+	num, den = ContinuedFraction(0.0, 100)
+	if num != 0 || den != 1 {
+		t.Errorf("ContinuedFraction(0, 100) = %d/%d, want 0/1", num, den)
+	}
+	num, den = ContinuedFraction(-0.5, 100)
+	if num != 0 || den != 1 {
+		t.Errorf("ContinuedFraction(-0.5, 100) = %d/%d, want 0/1", num, den)
+	}
+	// Irrational input: sqrt(2) ~= [1; 2, 2, 2, ...]. Convergents are
+	// 1/1, 3/2, 7/5, 17/12, ... For maxDenom=10 the loop must exit via
+	// the `kNew > maxDenom` branch (12 > 10), returning the last
+	// convergent that fit: 7/5. This covers the load-bearing branch
+	// for Shor's period finder (input rationals whose CF expansion
+	// doesn't terminate inside maxDenom).
+	num, den = ContinuedFraction(math.Sqrt(2), 10)
+	if num != 7 || den != 5 {
+		t.Errorf("ContinuedFraction(sqrt(2), 10) = %d/%d, want 7/5", num, den)
 	}
 }
 
@@ -70,8 +92,9 @@ func TestModPow(t *testing.T) {
 		{2, 10, 1000, 24},
 		{7, 0, 15, 1},
 		{0, 0, 7, 1},
-		{2, 1 << 10, 1000000007, 812734592},    // mod within uint32
+		{2, 1 << 10, 1000000007, 812734592},   // mod within uint32
 		{1<<32 + 1, 5, 1<<33 - 1, 5100273671}, // mod over uint32
+		{5, 3, 1, 0},                          // mod == 1 short-circuit
 	}
 	for _, c := range cases {
 		got := ModPow(c.base, c.exp, c.mod)
@@ -87,9 +110,9 @@ func TestMulMod(t *testing.T) {
 		a, b, mod, want uint64
 	}{
 		{0, 5, 7, 0},
-		{3, 4, 7, 5},        // 12 mod 7 = 5
+		{3, 4, 7, 5}, // 12 mod 7 = 5
 		{1234567, 7654321, 1000000007, 772047864},
-		{1 << 40, 1 << 40, 1 << 50, 0},      // exact-power-of-2 case
+		{1 << 40, 1 << 40, 1 << 50, 0}, // exact-power-of-2 case
 	}
 	for _, c := range cases {
 		got := MulMod(c.a, c.b, c.mod)
@@ -111,10 +134,10 @@ func TestAddMod(t *testing.T) {
 		a, b, mod, want uint64
 	}{
 		{1, 2, 5, 3},
-		{4, 4, 5, 3},          // 8 mod 5 = 3
+		{4, 4, 5, 3}, // 8 mod 5 = 3
 		{0, 0, 5, 0},
 		{1<<63 + 1, 1<<63 + 2, 1<<63 + 5, 1<<63 - 2}, // overflow-prone
-		{1<<63, 1<<63 - 1, 1<<63 + 1, 1<<63 - 2},      // mod near 2^63
+		{1 << 63, 1<<63 - 1, 1<<63 + 1, 1<<63 - 2},   // mod near 2^63
 	}
 	for _, c := range cases {
 		got := addMod(c.a, c.b, c.mod)

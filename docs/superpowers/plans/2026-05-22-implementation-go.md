@@ -309,6 +309,8 @@ The filename intentionally mirrors `/c`'s misspelling so the cross-implementatio
 
 Create `implementation/go/qubit/standart_test.go`:
 
+(Note: Task 9 below adds an irrational-input test for `ContinuedFraction` that needs `math.Sqrt`, so the import block will widen to include `"math"`. Future tasks may add more. Keep imports `go fmt`-clean.)
+
 ```go
 package qubit
 
@@ -546,6 +548,7 @@ func TestModPow(t *testing.T) {
 		{0, 0, 7, 1},
 		{2, 1<<10, 1000000007, 812734592},     // mod within uint32
 		{1<<32 + 1, 5, 1<<33 - 1, 5100273671}, // mod over uint32
+		{5, 3, 1, 0},                          // mod == 1 short-circuit
 	}
 	for _, c := range cases {
 		got := ModPow(c.base, c.exp, c.mod)
@@ -621,6 +624,25 @@ func TestContinuedFraction(t *testing.T) {
 	num, den = ContinuedFraction(1.0/3.0, 10)
 	if num != 1 || den != 3 {
 		t.Errorf("ContinuedFraction(1/3, 10) = %d/%d, want 1/3", num, den)
+	}
+	// x <= 0 safety hatch (Shor's QFT readout c=0 case): returns (0, 1).
+	num, den = ContinuedFraction(0.0, 100)
+	if num != 0 || den != 1 {
+		t.Errorf("ContinuedFraction(0, 100) = %d/%d, want 0/1", num, den)
+	}
+	num, den = ContinuedFraction(-0.5, 100)
+	if num != 0 || den != 1 {
+		t.Errorf("ContinuedFraction(-0.5, 100) = %d/%d, want 0/1", num, den)
+	}
+	// Irrational input: sqrt(2) ~= [1; 2, 2, 2, ...]. Convergents are
+	// 1/1, 3/2, 7/5, 17/12, ... For maxDenom=10 the loop must exit via
+	// the `kNew > maxDenom` branch (12 > 10), returning the last
+	// convergent that fit: 7/5. This covers the load-bearing branch
+	// for Shor's period finder (input rationals whose CF expansion
+	// doesn't terminate inside maxDenom). Requires `import "math"`.
+	num, den = ContinuedFraction(math.Sqrt(2), 10)
+	if num != 7 || den != 5 {
+		t.Errorf("ContinuedFraction(sqrt(2), 10) = %d/%d, want 7/5", num, den)
 	}
 }
 
