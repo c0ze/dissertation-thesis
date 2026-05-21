@@ -357,6 +357,32 @@ static void test_mcz_flips_only_all_ones(void) {
     qreg_destroy(q);
 }
 
+static void test_mcx_acts_as_x_on_target_when_all_controls_set(void) {
+    /* Controls = {0, 1}; target = 2. Starting from |011>, controls are
+     * both 1, so target gets X: |011> -> |111> (basis index 7).         */
+    qreg *q = qreg_create(3, MPI_COMM_WORLD);
+    if (!is_local_qubit(q, 0) || !is_local_qubit(q, 1) || !is_local_qubit(q, 2)) {
+        qreg_destroy(q); TEST_PASS(); return;
+    }
+    qreg_init_basis(q, 3);                      /* |011> */
+    int ctrls[2] = {0, 1};
+    apply_multi_controlled_x(q, ctrls, 2, 2);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 7));
+    qreg_destroy(q);
+}
+
+static void test_mcx_is_noop_when_a_control_is_zero(void) {
+    qreg *q = qreg_create(3, MPI_COMM_WORLD);
+    if (!is_local_qubit(q, 0) || !is_local_qubit(q, 1) || !is_local_qubit(q, 2)) {
+        qreg_destroy(q); TEST_PASS(); return;
+    }
+    qreg_init_basis(q, 1);                      /* |001> -- only qubit 0 set */
+    int ctrls[2] = {0, 1};
+    apply_multi_controlled_x(q, ctrls, 2, 2);
+    TEST_ASSERT_DOUBLE_WITHIN(PROB_TOL, 1.0, prob_of(q, 1));   /* unchanged */
+    qreg_destroy(q);
+}
+
 void register_tests(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -389,6 +415,8 @@ void register_tests(void) {
     RUN_TEST(test_swap_exchanges_basis_indices);
     RUN_TEST(test_swap_self_is_identity);
     RUN_TEST(test_mcz_flips_only_all_ones);
+    RUN_TEST(test_mcx_acts_as_x_on_target_when_all_controls_set);
+    RUN_TEST(test_mcx_is_noop_when_a_control_is_zero);
 }
 
 TEST_RUNNER_MAIN()

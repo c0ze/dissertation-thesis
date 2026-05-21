@@ -66,4 +66,7 @@ void apply_swap(qreg *q, int a, int b);
 /* Phase-flip the single all-ones amplitude |1...1> on the first n qubits. */
 void apply_multi_controlled_z(qreg *q, int n);
 
+void apply_multi_controlled_x(qreg *q, const int *controls, int n_controls,
+                              int target);
+
 #endif /* MATRIX_H */

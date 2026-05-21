@@ -323,3 +323,41 @@ void apply_multi_controlled_z(qreg *q, int n) {
         if ((global & mask) == mask) q->amp[off] = -q->amp[off];
     }
 }
+
+void apply_multi_controlled_x(qreg *q, const int *controls, int n_controls,
+                              int target) {
+    QREG_ASSERT(q != NULL,        "apply_mcx: q is NULL");
+    QREG_ASSERT(controls != NULL, "apply_mcx: controls is NULL");
+    QREG_ASSERT(n_controls >= 1,  "apply_mcx: at least one control required");
+    QREG_ASSERT(target >= 0 && target < q->n_qubits,
+                "apply_mcx: target out of range");
+    /* Validate controls in range and distinct from target. */
+    for (int i = 0; i < n_controls; i++) {
+        QREG_ASSERT(controls[i] >= 0 && controls[i] < q->n_qubits,
+                    "apply_mcx: control out of range");
+        QREG_ASSERT(controls[i] != target,
+                    "apply_mcx: control equals target");
+        for (int j = i + 1; j < n_controls; j++)
+            QREG_ASSERT(controls[i] != controls[j],
+                        "apply_mcx: duplicate control");
+    }
+    /* V1 supports the case where every control AND the target is local.
+     * The distributed multi-controlled X would itself decompose into
+     * Toffoli + ancilla ladder; left for a follow-up.                    */
+    for (int i = 0; i < n_controls; i++)
+        QREG_ASSERT(is_local_qubit(q, controls[i]),
+                    "apply_mcx: distributed controls not yet supported");
+    QREG_ASSERT(is_local_qubit(q, target),
+                "apply_mcx: distributed target not yet supported");
+    size_t cmask = 0;
+    for (int i = 0; i < n_controls; i++) cmask |= ((size_t)1 << controls[i]);
+    size_t tstride = (size_t)1 << target;
+    for (size_t i = 0; i < q->local_size; i++) {
+        if ((i & cmask) == cmask && !(i & tstride)) {
+            size_t j = i | tstride;
+            complex double t = q->amp[i];
+            q->amp[i] = q->amp[j];
+            q->amp[j] = t;
+        }
+    }
+}
