@@ -1,7 +1,7 @@
 # Design: implementation/go --- goroutine-parallel quantum simulator
 
 **Date:** 2026-05-21
-**Status:** Round-4 revision applied (idiomatic-Go API: panic vs error split, no Destroy/persistent pool, unexported amp, functional options). Awaiting written spec review.
+**Status:** Round-5 revision applied (QregMaxQubits=30, options infallible, explicit concurrency contract, dispatcher wording, narrowed CLI recover). Awaiting written spec review.
 **Owner:** Arda Karaduman
 **Author of this doc:** Claude
 
@@ -81,7 +81,19 @@ so the cross-implementation parallel is visually obvious.
 ## 4. Data model
 
 ```go
-const QregMaxQubits = 60   // mirrors /c's QREG_MAX_QUBITS
+// QregMaxQubits is the largest register the simulator will construct.
+// At 16 bytes per complex128 amplitude, 2^30 amplitudes is 16 GiB --
+// the entire RAM of the laptop target. ApplyModularExp transiently
+// doubles peak memory (old + new state vector, §5.5), so the
+// effective ceiling for Shor's algorithm on a 16 GiB machine is ~29
+// qubits. /c uses 60 here as a defensive shift-overflow bound; in Go,
+// where make([]complex128, n) for n above ~2^30 OOMs anyway, surfacing
+// 60 as the public ceiling would be a lie -- NewQreg(60) would try to
+// allocate 16 EiB and fail at the OS-allocator boundary with a runtime
+// panic rather than a clean recoverable error. 30 keeps the documented
+// limit honest. (Tests never approach this ceiling; the largest
+// register the test suite builds is the 16-qubit Shor-21 register.)
+const QregMaxQubits = 30
 
 type Qreg struct {
     amp     []complex128   // contiguous state vector, len = 1 << nQubits
@@ -102,6 +114,19 @@ type chunkFn func(amp []complex128, lo, hi int)
 ```
 
 The struct is intentionally minimal. All fields are unexported. Same-package code (every file under `qubit/`) reads `q.amp` and `q.nQubits` directly; external callers go through accessors (§6.1). There is no persistent worker pool, no channel handles, no `WaitGroup` living on the struct, no `sync.Once` guarding teardown -- the dispatcher creates and joins its goroutines per call (§4.3), so the only lifetime concern is the amplitude slice itself.
+
+**Concurrency contract.** A `*Qreg` is **not** safe for concurrent
+method calls from multiple goroutines. The amplitude slice is
+shared-mutable and `rand.Rand` is itself not goroutine-safe; the
+dispatcher's internal fan-out is already serialised by the caller's
+`wg.Wait()`, so within a single gate the workers are race-free, but
+two simultaneous gate calls on the same `*Qreg` would race on
+`q.amp`. Callers that need parallelism across registers create
+independent `*Qreg`s; gates on different registers are fully
+independent. `go test -race` is required in CI to catch *intra-gate*
+races (a gate primitive accidentally writing to overlapping cells, a
+new option mutating shared state without a lock); it does **not**
+imply the type itself is concurrent-user-safe.
 
 ### 4.1 Pair-index iteration
 
@@ -263,17 +288,28 @@ call site.
 
 ### 4.4 Validation and bounds
 
-`QregMaxQubits = 60` (same rationale as `/c`: 4-bit headroom over
-`uint64` shifts on 64-bit). Validation falls into two layers, and they
-deliberately use different mechanisms:
+`QregMaxQubits = 30` -- rationale at the constant's definition in
+§4. Diverges deliberately from `/c`'s 60: in Go, advertising 60 means
+`NewQreg(60)` would try to allocate 16 EiB, which is fiction. 30
+matches the laptop memory ceiling (16 GiB at 16 B per amplitude).
+Validation falls into two layers, and they deliberately use different
+mechanisms:
 
-* **Construction errors** -- bad `nQubits` argument to `NewQreg`,
-  eventually bad `Option` values -- return `error`. The caller picked
-  the value, so they get a recoverable result they can branch on.
+* **Construction errors** -- bad `nQubits` argument to `NewQreg` --
+  return `error`. The caller picked the value, so they get a
+  recoverable result they can branch on.
   ```go
-  q, err := qubit.NewQreg(64)
-  if err != nil { /* handle gracefully */ }
+  q, err := qubit.NewQreg(32)
+  if err != nil { /* nQubits exceeds QregMaxQubits */ }
   ```
+  Options themselves are infallible in v1 -- `type Option func(*Qreg)`
+  with no error return. `WithWorkers(0)` is silently ignored (the
+  default stays in effect) rather than failing the construction, so
+  there is no "invalid option" failure mode to surface. If a future
+  option grows a genuine validation step, the cleanest path is to
+  change the type to `func(*Qreg) error` and have `NewQreg` propagate;
+  no caller would break, because errors from `NewQreg` already need
+  branching.
 
 * **Programmer errors** -- out-of-range qubit indices passed into a
   gate method, `control == target`, register-overlap violations in
@@ -687,7 +723,7 @@ across the suite. Highlights:
 
 | File | Cases |
 |---|---|
-| `qreg_test.go` | NewQreg accept (1..60); NewQreg returns error on 0/61/-1; WithSeed reproducibility; WithWorkers caps fan-out; InitBasis correct; Norm invariant; ProbOf basis; Amplitude in-range vs out-of-range (out-of-range panics, recovered in test); AmplitudesCopy is independent of subsequent gates |
+| `qreg_test.go` | NewQreg accept (1..QregMaxQubits, but actual cases stop at 16 -- no point allocating 16 GiB in CI); NewQreg returns error on 0, QregMaxQubits+1, -1; WithSeed reproducibility; WithWorkers caps fan-out; InitBasis correct; Norm invariant; ProbOf basis; Amplitude in-range vs out-of-range (out-of-range panics, recovered in test); AmplitudesCopy is independent of subsequent gates |
 | `gates_single_test.go` | H twice = I; S^2 = Z; T^4 = Z; R 2pi = I; Y on \|0\>; Z on \|0\> = I; Z on \|1\> negates (via H sandwich) |
 | `gates_controlled_test.go` | Bell state from H+CNOT; CZ phase visible via H-sandwich; SWAP exchanges; CU general (Bell with custom 2x2) |
 | `gates_multi_test.go` | MCZ flips only all-ones (verified via H^n MCZ H^n analytical probability check); MCX as Toffoli |
@@ -699,7 +735,14 @@ across the suite. Highlights:
 ### 7.3 Race detection
 
 `make test-race` runs `go test -race ./...`. Required for CI: a race
-in the worker pool would silently corrupt results in production.
+in the dispatcher or in a gate closure (workers writing to overlapping
+amp cells, a future option mutating shared state without
+synchronisation) would silently corrupt results in production. The
+race detector catches *intra-gate* contention; it does not certify
+that callers can share a `*Qreg` across goroutines -- see the
+"Concurrency contract" note in §4. Tests that intentionally exercise
+the worker fan-out (e.g. 16-qubit ApplyH with `WithWorkers(8)`) are
+the highest-signal cases for the race detector.
 
 ### 7.4 Determinism
 
@@ -740,8 +783,10 @@ shell (no MPI forwarding needed).
 
 `--algo {bell|qft|grover|shor}`. Each demo prints a couple of
 probabilities or factors. Mirrors `/c`'s qubit.c. `main` wraps its
-body in a `recover` so a library panic exits the CLI cleanly with a
-non-zero status:
+body in a `recover` so a panic raised on the **main goroutine** --
+precondition violations checked before dispatch, a bad CLI flag value
+caught by an assert, etc. -- exits the CLI cleanly with a non-zero
+status:
 
 ```go
 func main() {
@@ -754,6 +799,14 @@ func main() {
     run()   // parse flags, dispatch on --algo, print results
 }
 ```
+
+Panics raised inside dispatcher-spawned goroutines (the gate closures
+themselves) are *not* recoverable from `main` -- Go's default
+goroutine-panic behaviour prints the panic value and stack trace and
+terminates the whole process, also exiting non-zero. Either path
+satisfies "loud failure, non-zero exit". `main`'s `recover` is just
+for the synchronous-precondition-failure case where we get a tidy
+single-line stderr instead of a goroutine stack trace.
 
 This is the **only** site in the codebase that calls `os.Exit`; the
 library itself never does (§4.4).
@@ -843,14 +896,25 @@ approved at v1. Subsequent rounds revised the written form:
 * Round 3: `addMod` helper closes the residual overflow window in
   MulMod, API unified on methods (no mixed method/package-fn pairs
   for state-mutating ops), worker goroutine made panic-safe.
-* Round 4 (current): replace `os.Exit` fail-fast with `panic` for
-  programmer errors and `error` returns for construction errors;
-  drop the persistent worker pool and `Destroy()` in favour of
-  per-call goroutines + `sync.WaitGroup`; unexport `amp` and expose
+* Round 4: replace `os.Exit` fail-fast with `panic` for programmer
+  errors and `error` returns for construction errors; drop the
+  persistent worker pool and `Destroy()` in favour of per-call
+  goroutines + `sync.WaitGroup`; unexport `amp` and expose
   `Amplitude`/`AmplitudesCopy`/`NQubits` accessors; replace the
   `SeedRNG` test-mutator with functional options `WithSeed` /
   `WithWorkers` at `NewQreg`. Semantic parity with `/c` preserved;
   the changes are purely API/lifecycle/error-handling.
+* Round 5 (current): `QregMaxQubits` dropped from 60 to 30 so the
+  documented ceiling matches what `make([]complex128, 1<<n)` can
+  actually allocate on the laptop target; option-error policy
+  contradiction resolved (options stay infallible in v1, the type
+  remains `func(*Qreg)`, `NewQreg`'s `error` return is reserved for
+  the `nQubits` check); explicit "Qreg is not safe for concurrent
+  method calls" contract added to §4; §7.3 wording updated from
+  "race in the worker pool" to "race in the dispatcher or gate
+  closures"; §8.2 CLI recover narrowed to "main-goroutine panics
+  only -- worker-goroutine panics crash via Go default and also
+  exit non-zero".
 
 Awaiting user re-approval before transitioning to the implementation
 plan via the writing-plans skill.
