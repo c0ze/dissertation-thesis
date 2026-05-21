@@ -109,8 +109,8 @@ check: $(TARGET)
 	[ "$$r2"  = 1 ] || { echo "FAIL: expected exactly 1 'my rank : 2' header, got $$r2"; fail=1; }; \
 	[ "$$r3"  = 1 ] || { echo "FAIL: expected exactly 1 'my rank : 3' header, got $$r3"; fail=1; }; \
 	[ "$$r0"  = 0 ] || { echo "FAIL: master should not compute, but emitted 'my rank : 0'"; fail=1; }; \
-	echo "$$out" | awk ' \
-		    /^\[1,[0-9]+\]<stdout>: \((-)?0\.354 \+ 0\.000 i\)/ { \
+		echo "$$out" | awk ' \
+		    /^\[1,[0-9]+\]<stdout>:[[:space:]]*\((-)?0\.354 \+ 0\.000 i\)/ { \
 		        line = $$0; \
 		        sub(/^\[1,/, "", line); \
 		        sub(/\].*/, "", line); \
