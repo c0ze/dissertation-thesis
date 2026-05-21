@@ -35,7 +35,7 @@ BINDIR     := $(BUILDDIR)/bin
 TESTDIR    := $(BUILDDIR)/tests
 
 # Library sources will be filled in as later tasks add files.
-LIB_SRCS   := standart.c matrix.c parallel.c qft.c
+LIB_SRCS   := standart.c matrix.c parallel.c qft.c grover.c
 LIB_OBJS   := $(LIB_SRCS:%.c=$(BUILDDIR)/%.o)
 
 # Test files. Each one becomes its own binary.
