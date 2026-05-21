@@ -89,22 +89,19 @@ run: require-pow2-np $(TARGET)
 #       rank 3 : (-0.354), (-0.354)         <- rows 6, 7
 # Totals: 4 negative amplitudes, 2 positive, 3 rank headers.
 #
-# The current implementation prints each rank's block atomically (one
-# header + its values), but stdout from different ranks interleaves
-# under mpirun. We assert per-rank correctness by post-processing the
-# output with awk: for each "my rank : N" header we look at the next
-# `row_distributed` amplitude lines and check their signs match the
-# expected pattern for rank N.
+# stdout from different ranks interleaves under mpirun. Use OpenMPI's
+# --tag-output so every line is prefixed with its rank, then assert
+# each rank's amplitude signs by prefix rather than by line adjacency.
 check: $(TARGET)
-	@out=$$(mpirun --oversubscribe -n 4 $(TARGET) 2>&1); \
+	@out=$$(mpirun --oversubscribe --tag-output -n 4 $(TARGET) 2>&1); \
 	echo "$$out"; \
 	echo "----"; \
 	neg=$$(echo "$$out" | grep -cF "(-0.354 + 0.000 i)"); \
 	pos=$$(echo "$$out" | grep -cF "(0.354 + 0.000 i)"); \
-	r1=$$(echo "$$out" | grep -cE "^my rank : 1 "); \
-	r2=$$(echo "$$out" | grep -cE "^my rank : 2 "); \
-	r3=$$(echo "$$out" | grep -cE "^my rank : 3 "); \
-	r0=$$(echo "$$out" | grep -cE "^my rank : 0 "); \
+	r1=$$(echo "$$out" | grep -cE "my rank : 1 "); \
+	r2=$$(echo "$$out" | grep -cE "my rank : 2 "); \
+	r3=$$(echo "$$out" | grep -cE "my rank : 3 "); \
+	r0=$$(echo "$$out" | grep -cE "my rank : 0 "); \
 	fail=0; \
 	[ "$$neg" = 4 ] || { echo "FAIL: expected 4 negative amplitudes, got $$neg"; fail=1; }; \
 	[ "$$pos" = 2 ] || { echo "FAIL: expected 2 positive amplitudes, got $$pos"; fail=1; }; \
@@ -113,18 +110,20 @@ check: $(TARGET)
 	[ "$$r3"  = 1 ] || { echo "FAIL: expected exactly 1 'my rank : 3' header, got $$r3"; fail=1; }; \
 	[ "$$r0"  = 0 ] || { echo "FAIL: master should not compute, but emitted 'my rank : 0'"; fail=1; }; \
 	echo "$$out" | awk ' \
-	    /^my rank : ([0-9]+) my result/ { current=$$4; remaining=2; next } \
-	    remaining > 0 && /^\(/ { \
-	        sign = ($$1 == "(0.354")  ? "+" : \
-	               ($$1 == "(-0.354") ? "-" : "?"; \
-	        observed[current] = observed[current] sign; \
-	        remaining--; next \
-	    } \
-	    END { \
-	        for (r in observed) { \
-	            expected = (r == 1) ? "--" : \
-	                       (r == 2) ? "++" : \
-	                       (r == 3) ? "--" : "??"; \
+		    /^\[1,[0-9]+\]<stdout>: \((-)?0\.354 \+ 0\.000 i\)/ { \
+		        line = $$0; \
+		        sub(/^\[1,/, "", line); \
+		        sub(/\].*/, "", line); \
+		        r = line; \
+		        sign = ($$0 ~ /\(-0\.354/) ? "-" : "+"; \
+		        observed[r] = observed[r] sign; \
+		        next \
+		    } \
+		    END { \
+		        for (r = 1; r <= 3; r++) { \
+		            expected = (r == 1) ? "--" : \
+		                       (r == 2) ? "++" : \
+		                       (r == 3) ? "--" : "??"; \
 	            if (observed[r] != expected) { \
 	                printf "FAIL: rank %d: expected [%s], got [%s]\n", \
 	                       r, expected, observed[r]; \
