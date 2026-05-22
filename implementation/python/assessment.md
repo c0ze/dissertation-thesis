@@ -9,12 +9,19 @@ canonical implementation site for each claim. Sibling implementations:
 
 | Claim | Status | Location |
 |---|---|---|
-| In-place single-qubit gate, O(2^n) | ✓ | `qubit/gates_single.py::apply_u` |
+| Object-level in-place single-qubit gate, O(2^n) work | ✓ | `qubit/gates_single.py::apply_u` |
 | State vector as a flat `(2^n,)` PyTorch tensor | ✓ | `qubit/qreg.py::Qreg._amp` |
 | Tensor-native dispatch via `tensordot` + `movedim` | ✓ | `qubit/gates_single.py::apply_u` |
 | Controlled gates via 4x4 block-diagonal CU | ✓ | `qubit/gates_controlled.py::apply_cu` |
-| ModularExp as in-place permutation via `torch.gather` | ✓ | `qubit/shor.py::apply_modular_exp` |
+| ModularExp as object-level in-place permutation via `torch.gather` | ✓ | `qubit/shor.py::apply_modular_exp` |
 | qreg API per §12 | ✓ | `qubit/qreg.py::Qreg` |
+
+**"In-place" caveat.** Object-level in-place: the `Qreg` instance is
+reused across gate calls and the underlying tensor is reassigned. PyTorch
+typically allocates a fresh output tensor for `tensordot`, `matmul`, and
+`gather`, so transient peak memory is 2x to 4x the state-vector size
+during a single gate (see `_memory.estimate_peak_bytes`). The sparse-gate
+work is still O(2^n) per gate; we never materialise a 2^n x 2^n operator.
 
 **Parallelism model.** Instead of MPI ranks (`/c`) or goroutines
 (`/go`), this implementation routes work through PyTorch's tensor ops

@@ -1,26 +1,32 @@
 """Qreg: state-vector quantum register backed by a 1-D PyTorch tensor.
 
-Surface through Phase 3: construction + accessors (Phase 0+1) and the
-single-qubit gate methods (Phase 3). Controlled gates, multi-controlled
-gates, measurement (beyond ``prob_of`` / ``norm``), QFT, Grover, and
-Shor land in later phases. See the design notes (rounds §1-§5 of the
-brainstorm) for the overall architecture and the rationale behind each
-choice.
+Public surface: construction + accessors, single-qubit gates, controlled
+and multi-controlled gates, measurement, QFT, Grover, and Shor. See the
+design notes (rounds §1-§5 of the brainstorm) for the overall
+architecture and the rationale behind each choice.
 
-The gate methods are thin wrappers around the function-style API in
-:mod:`qubit.gates_single` (and equivalents for controlled / multi-
-controlled / measurement / QFT / Grover / Shor in later phases). Both
-styles are supported deliberately: ``q.apply_h(0)`` reads naturally for
-method-chaining, while ``apply_h(q, 0)`` works for users who prefer the
-functional style and matches the lower-level signature used internally.
+The gate methods are thin wrappers around the function-style API in the
+``qubit.gates_*``, ``qubit.measure``, ``qubit.qft``, ``qubit.grover``,
+and ``qubit.shor`` modules. Both styles are supported deliberately:
+``q.apply_h(0)`` reads naturally for method-chaining, while
+``apply_h(q, 0)`` works for users who prefer the functional style and
+matches the lower-level signature used internally.
 
 Key invariants:
 
 * ``_amp`` is a 1-D contiguous tensor of length ``2**_n``, dtype either
   ``complex64`` (MPS) or ``complex128`` (CPU / CUDA / ROCm).
-* The amplitude tensor lives on ``_device`` and never migrates. Gates
-  operate in-place via tensor views; only ``amplitudes_copy()``
-  intentionally crosses to host.
+* The amplitude tensor lives on ``_device``. The Qreg object reference
+  is preserved across gate calls, but most gates allocate a fresh
+  underlying tensor through PyTorch's ``tensordot`` / ``movedim`` /
+  ``matmul`` and reassign ``_amp``. This is "in-place at the Qreg
+  object level," not "in-place on the underlying storage": the
+  sparse-gate work is still O(2**n), but PyTorch may double the
+  transient memory footprint for a single gate. Only
+  ``amplitudes_copy()`` intentionally crosses to host.
+* A freshly constructed ``Qreg`` is in the computational basis state
+  |0...0>; ``amp[0] == 1`` and all other amplitudes are zero. Use
+  ``init_basis(b)`` to reset to a different basis state.
 * ``_gen`` is a CPU :class:`torch.Generator` regardless of where ``_amp``
   lives. Measurement crosses to CPU at the readout boundary anyway, so
   keeping the RNG on CPU dodges MPS-generator quirks (reports of
@@ -137,10 +143,15 @@ class Qreg:
 
         # ---- allocate state vector -------------------------------------
         # zeros() returns a contiguous tensor; later gate code relies on
-        # contiguity for the (2,)*n reshape view.
+        # contiguity for the (2,)*n reshape view. Initialise to |0...0>
+        # so a freshly constructed Qreg is a valid quantum state (norm 1)
+        # and callers can apply gates immediately without an explicit
+        # init_basis(0). Use q.init_basis(b) to start from a different
+        # basis or to reset between runs.
         amp = torch.zeros(
             1 << n_qubits, dtype=resolved_dtype, device=resolved_device
         )
+        amp[0] = 1 + 0j
 
         # ---- measurement RNG -------------------------------------------
         # CPU generator regardless of where _amp lives. MPS measurement
@@ -160,6 +171,11 @@ class Qreg:
         self._dtype = resolved_dtype
         self._amp = amp
         self._gen = gen
+        # Remembered so later operation-level preflights (e.g. modexp,
+        # which transiently allocates a permutation index plus a fresh
+        # state-vector copy) can be skipped by callers that already
+        # validated memory themselves.
+        self._check_memory = check_memory
 
     # ---- read-only properties --------------------------------------------
 
@@ -259,7 +275,7 @@ class Qreg:
             (amp.real * amp.real + amp.imag * amp.imag).sum().item()
         )
 
-    # ---- single-qubit gate methods (Phase 3) ----------------------------
+    # ---- single-qubit gate methods --------------------------------------
     #
     # These are thin wrappers around the function-style API in
     # :mod:`qubit.gates_single`. Both call shapes are public:
@@ -342,7 +358,7 @@ class Qreg:
 
         gates_single.apply_rz(self, target, theta)
 
-    # ---- two-qubit controlled gate methods (Phase 4) --------------------
+    # ---- two-qubit controlled gate methods ------------------------------
     #
     # Same lazy-import discipline as the single-qubit methods. The
     # function-style equivalents live in :mod:`qubit.gates_controlled`.
@@ -386,7 +402,7 @@ class Qreg:
 
         gates_controlled.apply_swap(self, a, b)
 
-    # ---- multi-controlled gate methods (Phase 4) ------------------------
+    # ---- multi-controlled gate methods ----------------------------------
 
     def apply_multi_controlled_z(
         self, controls: list[int] | tuple[int, ...]
@@ -406,7 +422,7 @@ class Qreg:
 
         gates_multi.apply_multi_controlled_x(self, controls, target)
 
-    # ---- measurement, sampling, clone, dump (Phase 5) -------------------
+    # ---- measurement, sampling, clone, dump -----------------------------
 
     def measure_qubit(self, target: int) -> int:
         """Projective measurement on ``target``; collapse + renormalise.
@@ -455,7 +471,7 @@ class Qreg:
 
         return measure.dump(self, threshold=threshold)
 
-    # ---- QFT (Phase 6) --------------------------------------------------
+    # ---- QFT ------------------------------------------------------------
 
     def apply_qft(self, start: int = 0, n: int | None = None) -> None:
         """Apply the forward QFT to qubits ``[start, start + n)``.
@@ -477,7 +493,7 @@ class Qreg:
 
         qft.apply_qft_inverse(self, start, n)
 
-    # ---- Grover (Phase 7) -----------------------------------------------
+    # ---- Grover ---------------------------------------------------------
 
     def apply_grover(
         self,
@@ -494,7 +510,7 @@ class Qreg:
 
         grover.apply_grover(self, n_qubits, oracle, user, iterations)
 
-    # ---- Shor (Phase 8) -------------------------------------------------
+    # ---- Shor -----------------------------------------------------------
 
     def apply_modular_exp(
         self,

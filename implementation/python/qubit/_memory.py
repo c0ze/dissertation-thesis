@@ -41,9 +41,11 @@ _SANITY_CEILING: int = 1 << 40  # 1 TiB
 
 
 # Op tags used by estimate_peak_bytes. State is the baseline (one tensor);
-# qft is in-place reshapes (no extra tensor); modexp allocates a second
-# state tensor and an int64 permutation tensor (per spec §5.5).
-_Op = Literal["state", "modexp", "qft"]
+# single_gate / controlled_gate / qft are upper bounds on the transient
+# tensors PyTorch allocates during a gate (tensordot / matmul intermediates
+# plus an output state vector); modexp allocates a second state tensor and
+# an int64 permutation tensor (per spec §5.5).
+_Op = Literal["state", "modexp", "qft", "single_gate", "controlled_gate"]
 
 
 def dtype_bytes(dtype: torch.dtype) -> int:
@@ -73,8 +75,17 @@ def estimate_peak_bytes(
 
     * ``"state"`` -- one state vector. Baseline; matches
       :func:`estimate_state_bytes`.
-    * ``"qft"`` -- one state vector. QFT is in-place via tensor views;
-      no extra allocation.
+    * ``"single_gate"`` -- ``2 * state``. A single-qubit gate via
+      :func:`qubit.gates_single.apply_u` runs ``tensordot`` + ``movedim``,
+      which allocates a fresh output state vector alongside the source.
+    * ``"controlled_gate"`` -- ``4 * state``. Controlled-U via permute +
+      reshape + matmul + reshape + inverse-permute can hold the source,
+      the permuted view, a 2x2-block matmul output, and the unpermuted
+      result transiently.
+    * ``"qft"`` -- ``4 * state``. The QFT decomposes into Hadamards,
+      controlled-phase gates, and SWAPs; the controlled-phase steps
+      drive the peak. Treated as an upper bound on a single QFT gate;
+      a long QFT sequence releases each transient before the next.
     * ``"modexp"`` -- ``2 * state + 2 * int64_permutation``. ModularExp
       allocates a fresh state vector from the gather and holds both a
       CPU-side and a device-side copy of the permutation index tensor
@@ -83,8 +94,12 @@ def estimate_peak_bytes(
     state = estimate_state_bytes(n_qubits, dtype)
     if op == "state":
         return state
+    if op == "single_gate":
+        return 2 * state
+    if op == "controlled_gate":
+        return 4 * state
     if op == "qft":
-        return state
+        return 4 * state
     if op == "modexp":
         perm = (1 << n_qubits) * 8  # int64
         return 2 * state + 2 * perm

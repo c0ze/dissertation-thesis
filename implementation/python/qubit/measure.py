@@ -171,14 +171,16 @@ def measure_all(q: Qreg) -> int:
 
 
 def sample_distribution(q: Qreg, shots: int) -> list[int]:
-    """Run ``shots`` independent :func:`measure_all` shots and return the outcomes.
+    """Draw ``shots`` samples from ``|amp|^2`` and return them as a list.
 
-    Does **not** mutate ``q``: the amplitude tensor is restored to its
-    pre-call state before this function returns (including on
-    exceptions, via ``try / finally``). ``q._gen`` is advanced by
-    ``shots`` measurements, which matches calling ``measure_all`` in a
-    loop -- the RNG is the one piece of caller-visible state that the
-    sampling consumes.
+    Does **not** mutate ``q``: the amplitude tensor is read once into a
+    probability vector and ``torch.multinomial`` produces all samples
+    from it in one call, so the register is never collapsed. ``q._gen``
+    is advanced by exactly ``shots`` draws.
+
+    O(2**n + shots) work and O(2**n) extra memory for the probability
+    vector. (The previous implementation cloned the full amplitude
+    tensor once per shot, which scaled as O(shots * 2**n) instead.)
 
     ``shots=0`` is valid and returns the empty list. ``shots < 0`` raises.
     Returns a plain ``list[int]`` for ergonomic use with
@@ -191,22 +193,25 @@ def sample_distribution(q: Qreg, shots: int) -> list[int]:
     if shots == 0:
         return []
 
-    # Snapshot the initial amplitudes; we restore before each shot so
-    # each measurement samples from the original distribution.
-    snapshot = q._amp.detach().clone()
-    out: list[int] = []
+    # Build the probability vector once. q._gen lives on CPU so we move
+    # the probs over too -- multinomial requires both on the same device
+    # as the generator. For complex64/128 the cast to real-valued probs
+    # is straightforward.
+    amp = q._amp.detach()
+    probs = (amp.real * amp.real + amp.imag * amp.imag).to(
+        device="cpu", dtype=torch.float64
+    )
+    total = float(probs.sum().item())
+    if total <= 0.0:
+        raise RuntimeError(
+            "qubit: sample_distribution: total probability is zero "
+            "(forgot to init_basis(), or non-unitary gate sequence?)"
+        )
 
-    try:
-        for _ in range(shots):
-            # Fresh copy of the original state for this shot's collapse.
-            q._amp = snapshot.detach().clone()
-            out.append(measure_all(q))
-    finally:
-        # Restore q to the pre-call state regardless of whether
-        # measure_all succeeded on every shot.
-        q._amp = snapshot
-
-    return out
+    samples = torch.multinomial(
+        probs, num_samples=shots, replacement=True, generator=q._gen
+    )
+    return [int(x) for x in samples.tolist()]
 
 
 # ---------------------------------------------------------------------------
@@ -260,8 +265,11 @@ def dump(q: Qreg, *, threshold: float = 0.0) -> list[tuple[int, complex]]:
     amplitudes that you don't care about.
 
     Pulls the amplitude tensor to CPU once via ``amplitudes_copy``-style
-    detach/copy. For sparse states the iteration is bounded by the
-    non-zero count, not by ``2**n``.
+    detach/copy. The boolean mask + ``nonzero`` scan still costs
+    ``O(2**n)`` work to find which amplitudes to emit; only the final
+    Python ``list`` construction is bounded by the number of selected
+    amplitudes. Treat ``dump()`` as a small-state diagnostic helper,
+    not a sparse iterator for large registers.
     """
     raise_value(
         threshold >= 0,

@@ -16,8 +16,8 @@ gates), the controlled and multi-controlled gates (``apply_cu`` /
 ``clone`` / ``dump``), the Quantum Fourier Transform
 (``apply_qft`` / ``apply_qft_inverse``), Grover's amplitude
 amplification (``apply_grover``), and Shor's algorithm
-(``apply_modular_exp`` / ``apply_shor_period`` / ``shor_factor``).
-The CLI demo is the last remaining piece.
+(``apply_modular_exp`` / ``apply_shor_period`` / ``shor_factor``), and
+the ``qubit-demo`` CLI (``qubit.cli``).
 
 Public API surface:
 

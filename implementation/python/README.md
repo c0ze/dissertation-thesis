@@ -45,9 +45,9 @@ as `/c` and `/go`:
   `torch.gather` with a CPU-built index tensor), `apply_shor_period`
   (period-finding circuit), `shor_factor(N, max_attempts=20,
   seed=None)` (end-to-end factoring, bit-for-bit reproducible when
-  seeded). v1 covers Shor-15 (12-qubit register) and Shor-21
-  (16-qubit register, gated by `RUN_SHOR_21=1` to keep the default
-  test loop fast).
+  seeded). v1 covers Shor-15 (13-qubit register: `n=4` target +
+  `t=2n+1=9` counting) and Shor-21 (16-qubit register: `n=5` + `t=11`,
+  gated by `RUN_SHOR_21=1` to keep the default test loop fast).
 - `qubit-demo` CLI — `--algo {bell,qft,grover,shor}` for quick
   algorithm-level smoke tests. Installed via `[project.scripts]`.
 
@@ -55,16 +55,25 @@ Function-style (`apply_h(q, 0)`) and method-style (`q.apply_h(0)`)
 call shapes are both first-class for every gate, measurement op, QFT,
 Grover, and Shor primitive.
 
-**Tests:** 414 default + 1 gated Shor-21 = **415 total**. All green
-under `ruff check`, `mypy --strict`, and on every available device
-(CPU + MPS locally; CPU-only on Linux CI).
+**Tests:** the exact collected count is device-dependent because the
+device-parametrised tests in `tests/conftest.py` expand once per
+available backend. On the author's CPU + MPS host the count is
+**414 default + 1 gated Shor-21 = 415 total**; on CPU-only CI runners
+the MPS rows drop and the collected count is lower. All green on
+every available device under `ruff check`, `mypy --strict`, and
+pytest.
 
 ## Quickstart
+
+The Makefile targets assume [`uv`](https://docs.astral.sh/uv/) is on
+your path (it manages the venv and dev-tool installation). Without
+`uv`, the same workflow runs through `pip install -e .[dev]` and your
+preferred environment manager.
 
 ```bash
 cd implementation/python
 make sync                      # creates .venv, installs torch + dev tools
-make test                      # 414 active tests, ~0.5s on Apple Silicon
+make test                      # ~0.5s on Apple Silicon
 make check                     # lint + typecheck + test (the full PR gate)
 
 make demo                      # default: bell
@@ -76,6 +85,17 @@ RUN_SHOR_21=1 uv run pytest tests/test_shor.py -q   # 16-qubit gated test
 ```
 
 The CLI also runs directly: `uv run qubit-demo --algo shor`.
+
+On many-core CPU-only hosts, PyTorch's default thread fan-out can be
+counterproductive for the small tensor kernels these tests exercise.
+If the gated Shor-21 path is slow or hangs, cap the thread count:
+
+```bash
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+    RUN_SHOR_21=1 uv run pytest tests/test_shor.py -q
+```
+
+Apple Silicon / MPS does not need this.
 
 ## Key design choices
 
@@ -154,9 +174,9 @@ print(result)  # ShorFactorResult(p=3, q=5, attempts=1)
   qubits the modexp permutation tensor is 256 MiB (int64) on CPU
   before transfer, and the gather output adds another 512 MiB. The
   arithmetic is correct, but the memory cost is significant.
-  Shor-15 (12-qubit register) and Shor-21 (16-qubit register) are
-  the supported algorithm targets; both run in well under a second
-  on CPU.
+  Shor-15 (13-qubit register: `n=4` + `t=9`) and Shor-21 (16-qubit
+  register: `n=5` + `t=11`) are the supported algorithm targets;
+  both run in well under a second on CPU.
 - **MPS dtype is `complex64`, not `complex128`.** The MPS backend
   lacks `float64`. `apply_modular_exp`'s permutation tensor and the
   resulting gather output are unaffected (both int64 / complex64),

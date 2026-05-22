@@ -56,11 +56,30 @@ def test_peak_state_equals_state_bytes() -> None:
     assert estimate_peak_bytes(n, dt, op="state") == estimate_state_bytes(n, dt)
 
 
-def test_peak_qft_equals_state_bytes() -> None:
-    # QFT is in-place via reshapes; no extra allocation.
+def test_peak_qft_is_four_state_bytes() -> None:
+    # QFT is NOT actually in-place: it decomposes into Hadamards and
+    # controlled-phase gates, each of which allocates a fresh state
+    # vector via PyTorch tensor ops. We treat 4*state as a defensive
+    # upper bound on a single QFT gate's transient peak.
     n = 10
     dt = torch.complex128
-    assert estimate_peak_bytes(n, dt, op="qft") == estimate_state_bytes(n, dt)
+    assert estimate_peak_bytes(n, dt, op="qft") == 4 * estimate_state_bytes(n, dt)
+
+
+def test_peak_single_gate_is_two_state_bytes() -> None:
+    # apply_u runs tensordot + movedim, which holds the source state
+    # vector and the freshly-allocated output simultaneously.
+    n = 10
+    dt = torch.complex128
+    assert estimate_peak_bytes(n, dt, op="single_gate") == 2 * estimate_state_bytes(n, dt)
+
+
+def test_peak_controlled_gate_is_four_state_bytes() -> None:
+    # apply_cu does permute + reshape + matmul + reshape + inverse-permute;
+    # the transient peak can hold up to four state-sized tensors.
+    n = 10
+    dt = torch.complex128
+    assert estimate_peak_bytes(n, dt, op="controlled_gate") == 4 * estimate_state_bytes(n, dt)
 
 
 def test_peak_modexp_counts_extra_tensors() -> None:
@@ -74,9 +93,9 @@ def test_peak_modexp_counts_extra_tensors() -> None:
 
 
 def test_peak_unknown_op_raises() -> None:
-    # Deliberate: passing a string outside the Literal["state","modexp","qft"]
-    # union to exercise the runtime branch. The `type: ignore` on the call
-    # itself suppresses mypy's complaint about the bad Literal argument.
+    # Deliberate: passing a string outside the _Op Literal union to exercise
+    # the runtime branch. The `type: ignore` on the call itself suppresses
+    # mypy's complaint about the bad Literal argument.
     with pytest.raises(ValueError, match=r"^qubit: estimate_peak_bytes: unknown op"):
         estimate_peak_bytes(4, torch.complex128, op="bogus")  # type: ignore[arg-type]
 

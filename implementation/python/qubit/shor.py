@@ -18,8 +18,9 @@ Three public entry points:
   ``Qreg``; size ``t + n`` with ``n = ceil(log2 N)``, ``t = 2n + 1``
   per the standard Shor recipe.
 
-Scope note: v1 covers Shor-15 (12-qubit register) and Shor-21
-(16-qubit register) comfortably -- both well under a second on CPU
+Scope note: v1 covers Shor-15 (13-qubit register: n=4 target bits +
+t=2n+1=9 counting bits) and Shor-21 (16-qubit register: n=5+t=11)
+comfortably -- both well under a second on CPU
 including the CPU-side permutation build. 25-qubit modular
 exponentiation is NOT a practical target for this implementation: the
 permutation tensor would be 2^25 * 8 = 256 MiB on CPU before transfer
@@ -36,6 +37,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from . import _memory
 from ._assert import raise_value
 from .gates_single import apply_h
 from .qft import apply_qft_inverse
@@ -178,48 +180,77 @@ def apply_modular_exp(
     applies a single ``torch.gather``. One state-vector allocation
     (the gather output) per call.
     """
-    raise_value(t >= 1, "apply_modular_exp: t=%d must be >= 1", t)
-    raise_value(n >= 1, "apply_modular_exp: n=%d must be >= 1", n)
-    raise_value(
-        counting_start >= 0,
-        "apply_modular_exp: counting_start=%d must be >= 0", counting_start,
+    _validate_modexp_args(
+        q, counting_start, t, target_start, n, a, N, caller="apply_modular_exp"
     )
-    raise_value(
-        target_start >= 0,
-        "apply_modular_exp: target_start=%d must be >= 0", target_start,
-    )
-    raise_value(
-        counting_start + t <= q._n,
-        "apply_modular_exp: counting range [%d, %d) out of [0, %d)",
-        counting_start, counting_start + t, q._n,
-    )
-    raise_value(
-        target_start + n <= q._n,
-        "apply_modular_exp: target range [%d, %d) out of [0, %d)",
-        target_start, target_start + n, q._n,
-    )
-    c_end = counting_start + t
-    t_end = target_start + n
-    raise_value(
-        c_end <= target_start or t_end <= counting_start,
-        "apply_modular_exp: counting [%d, %d) and target [%d, %d) overlap",
-        counting_start, c_end, target_start, t_end,
-    )
-    raise_value(N >= 2, "apply_modular_exp: N=%d must be >= 2", N)
-    raise_value(
-        N <= 1 << n,
-        "apply_modular_exp: N=%d exceeds target capacity 2^%d", N, n,
-    )
-    raise_value(a >= 0, "apply_modular_exp: a=%d must be >= 0", a)
-    raise_value(
-        gcd_u64(a, N) == 1,
-        "apply_modular_exp: gcd(a=%d, N=%d) != 1 (not coprime)", a, N,
-    )
+    # Memory preflight for the permutation tensor + gather output, gated
+    # by the Qreg's check_memory flag so power users can opt out the
+    # same way they would on the constructor. Quiet no-op when the
+    # device doesn't expose a free-memory query.
+    if q._check_memory:
+        _memory.preflight(q._n, q._dtype, q._device, op="modexp")
 
     perm = _build_modexp_perm(
         q._n, counting_start, t, target_start, n, a, N
     ).to(q._device)
     q._amp = q._amp.gather(0, perm)
+
+
+def _validate_modexp_args(
+    q: Qreg,
+    counting_start: int,
+    t: int,
+    target_start: int,
+    n: int,
+    a: int,
+    N: int,
+    *,
+    caller: str = "apply_modular_exp",
+) -> None:
+    """Validate the modular-exponentiation argument bundle.
+
+    Shared by :func:`apply_modular_exp` and :func:`apply_shor_period`
+    so that bad arguments are rejected BEFORE any state mutation. Each
+    call site passes its own ``caller`` label so the raised
+    ``ValueError`` messages stay precise.
+    """
+    raise_value(t >= 1, "%s: t=%d must be >= 1", caller, t)
+    raise_value(n >= 1, "%s: n=%d must be >= 1", caller, n)
+    raise_value(
+        counting_start >= 0,
+        "%s: counting_start=%d must be >= 0", caller, counting_start,
+    )
+    raise_value(
+        target_start >= 0,
+        "%s: target_start=%d must be >= 0", caller, target_start,
+    )
+    raise_value(
+        counting_start + t <= q._n,
+        "%s: counting range [%d, %d) out of [0, %d)",
+        caller, counting_start, counting_start + t, q._n,
+    )
+    raise_value(
+        target_start + n <= q._n,
+        "%s: target range [%d, %d) out of [0, %d)",
+        caller, target_start, target_start + n, q._n,
+    )
+    c_end = counting_start + t
+    t_end = target_start + n
+    raise_value(
+        c_end <= target_start or t_end <= counting_start,
+        "%s: counting [%d, %d) and target [%d, %d) overlap",
+        caller, counting_start, c_end, target_start, t_end,
+    )
+    raise_value(N >= 2, "%s: N=%d must be >= 2", caller, N)
+    raise_value(
+        N <= 1 << n,
+        "%s: N=%d exceeds target capacity 2^%d", caller, N, n,
+    )
+    raise_value(a >= 0, "%s: a=%d must be >= 0", caller, a)
+    raise_value(
+        gcd_u64(a, N) == 1,
+        "%s: gcd(a=%d, N=%d) != 1 (not coprime)", caller, a, N,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -258,11 +289,20 @@ def apply_shor_period(
     Returns a :class:`ShorPeriodResult`. The recovered ``period`` may be
     a divisor of the true order rather than the order itself; the
     caller (typically :func:`shor_factor`) is responsible for filtering
-    odd / unlucky periods.
+    odd / unlucky periods. A ``measured == 0`` readout (which carries
+    no period information) returns ``period = 0`` so callers can treat
+    "no useful period extracted" as a single sentinel.
     """
-    # Initialise state. apply_modular_exp validates a, N, ranges, so we
-    # don't pre-check here -- delegation keeps the message provenance
-    # clear if something is wrong.
+    # Validate arguments BEFORE init_basis() mutates the register, so
+    # bad arguments don't leave the caller's register half-altered.
+    # Same precondition bundle apply_modular_exp uses; passing
+    # caller="apply_shor_period" so the error messages stay precise.
+    _validate_modexp_args(
+        q, counting_start, t, target_start, n, a, N,
+        caller="apply_shor_period",
+    )
+
+    # Initialise state.
     q.init_basis(1 << target_start)
 
     # Step 1: uniform superposition over the counting register.
@@ -283,6 +323,14 @@ def apply_shor_period(
     full = q.measure_all()
     t_mask = (1 << t) - 1
     measured = (full >> counting_start) & t_mask
+
+    # A c=0 readout carries no period information. continued_fraction
+    # would return denominator 1 (Fraction(0, q).limit_denominator(...)
+    # gives 0/1), which is a perfectly valid fraction but useless as a
+    # period candidate. Report it as outright failure so callers don't
+    # have to special-case period==1.
+    if measured == 0:
+        return ShorPeriodResult(period=0, measured=0)
 
     # Step 5: continued-fraction recovery of the candidate period.
     # Already shipping: continued_fraction(c, q, max_denom) returns the
@@ -394,8 +442,10 @@ def shor_factor(
             return ShorFactorResult(p=g, q=N // g, attempts=attempt)
 
         # Allocate a fresh register; allow seeding for reproducibility.
-        # check_memory=False because we already validated n_total
-        # implicitly above (Shor-15 = 13, Shor-21 = 16, both small).
+        # We leave the default check_memory=True. The supported v1 cases
+        # are small (Shor-15 = 13 qubits, Shor-21 = 16) so the preflight
+        # is essentially free, and apply_modular_exp also preflights its
+        # own permutation+gather peak before allocating.
         q = Qreg(n_total, seed=qreg_seed)
         res = apply_shor_period(q, n, t_bits, 0, n, a, N)
         r = res.period

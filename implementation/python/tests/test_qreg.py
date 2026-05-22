@@ -30,8 +30,15 @@ def test_construct_valid_n(n: int) -> None:
     q = Qreg(n)
     assert q.n_qubits == n
     assert len(q._amp) == (1 << n)
-    # Default initial state is the all-zeros tensor.
-    assert q._amp.abs().sum().item() == pytest.approx(0.0)
+    # A freshly-constructed Qreg is in the computational basis |0...0>:
+    # amp[0] = 1, all other amplitudes 0, norm 1. This makes the
+    # register a valid quantum state from the moment NewQreg returns,
+    # so callers can apply gates immediately without an explicit
+    # init_basis(0) (which still exists for explicit resets).
+    assert q._amp[0].item() == complex(1, 0)
+    assert q.norm() == pytest.approx(1.0)
+    for i in range(1, 1 << n):
+        assert q._amp[i].item() == complex(0, 0)
 
 
 def test_construct_rejects_n_zero() -> None:
@@ -305,9 +312,12 @@ def test_norm_basis_state_is_one() -> None:
 
 
 def test_norm_zero_state_is_zero() -> None:
-    # The default-constructed Qreg (no init_basis call) is all zeros;
-    # norm == 0. Pathological but well-defined.
+    # A *fresh* Qreg is now in |0...0> with norm 1. Explicitly zero
+    # the amplitude vector to exercise the zero-norm path; this keeps
+    # the test exercising norm()'s behavior on the pathological-but-
+    # well-defined zero state.
     q = Qreg(3)
+    q._amp.zero_()
     assert q.norm() == pytest.approx(0.0, abs=PROB_TOL_C128)
 
 

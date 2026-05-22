@@ -107,11 +107,13 @@ def test_measure_qubit_rejects_negative() -> None:
 
 
 def test_measure_qubit_raises_qubit_prefix_on_zero_norm() -> None:
-    # A fresh Qreg has an all-zero amplitude vector (init_basis hasn't
-    # been called). measure_qubit must raise a "qubit:"-prefixed
-    # RuntimeError rather than crashing with a bare math error or
-    # producing an unbiased result.
+    # A fresh Qreg is now in |0...0> (amp[0] = 1), so we explicitly
+    # zero the amplitude vector here to exercise the zero-norm guard.
+    # measure_qubit must raise a "qubit:"-prefixed RuntimeError rather
+    # than crashing with a bare math error or producing an unbiased
+    # result.
     q = Qreg(2, device="cpu")
+    q._amp.zero_()
     with pytest.raises(
         RuntimeError, match=r"^qubit: measure_qubit: total probability"
     ):
@@ -169,10 +171,12 @@ def test_measure_all_collapses_to_chosen_basis() -> None:
 
 
 def test_measure_all_raises_qubit_prefix_on_zero_norm() -> None:
-    # A fresh Qreg with no init_basis has all-zero amplitudes. Calling
-    # measure_all must raise a "qubit:"-prefixed RuntimeError rather
-    # than leaking torch.multinomial's bare RuntimeError.
+    # A fresh Qreg is now in |0...0> (amp[0] = 1), so we explicitly
+    # zero the amplitude vector here to exercise the zero-norm guard.
+    # Calling measure_all must raise a "qubit:"-prefixed RuntimeError
+    # rather than leaking torch.multinomial's bare RuntimeError.
     q = Qreg(2, device="cpu")
+    q._amp.zero_()
     with pytest.raises(
         RuntimeError, match=r"^qubit: measure_all: total probability"
     ):
@@ -360,8 +364,10 @@ def test_dump_threshold_filters() -> None:
 
 
 def test_dump_on_zero_state_returns_empty() -> None:
-    # A fresh Qreg with no init_basis is all zeros.
+    # A fresh Qreg is now in |0...0> (amp[0] = 1), so we explicitly
+    # zero the amplitude vector here to exercise the empty-dump path.
     q = Qreg(3, device="cpu")
+    q._amp.zero_()
     assert dump(q) == []
 
 

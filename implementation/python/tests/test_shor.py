@@ -185,15 +185,18 @@ def test_shor_period_a7_mod15_seeded() -> None:
 
 def test_shor_period_a7_mod15_multiple_seeds() -> None:
     # The function is stochastic; sweep a handful of seeds and confirm
-    # every run produces a divisor of 4. If the implementation were
-    # wrong (e.g. swapped LSB/MSB on the counting register, off-by-one
-    # in the modexp permutation), at least one seed would surface it.
+    # every run produces either a divisor of the true order (4 for
+    # a=7 mod 15) OR the period=0 "outright failure" sentinel that
+    # apply_shor_period returns on a c=0 readout. If the implementation
+    # were wrong (e.g. swapped LSB/MSB on the counting register,
+    # off-by-one in the modexp permutation), at least one seed would
+    # surface a value outside this set.
     n = 4
     t = 9
     for seed in (1, 7, 42, 100, 2026):
         q = Qreg(t + n, device="cpu", seed=seed)
         res = apply_shor_period(q, n, t, 0, n, 7, 15)
-        assert res.period in {1, 2, 4}, (
+        assert res.period in {0, 1, 2, 4}, (
             f"seed={seed}: period={res.period} (measured={res.measured})"
         )
 
