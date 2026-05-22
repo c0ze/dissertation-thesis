@@ -26,12 +26,22 @@ from __future__ import annotations
 import argparse
 import math
 import sys
+import warnings
 from collections.abc import Callable
 from typing import Any
 
-from .grover import apply_grover
-from .qreg import Qreg
-from .shor import shor_factor
+# PyTorch's optional NumPy bridge warns on import when NumPy is absent.
+# We don't depend on NumPy, so the warning is pure noise in demo output.
+# Filter it before importing the modules that pull torch in.
+warnings.filterwarnings(
+    "ignore",
+    message="Failed to initialize NumPy",
+    category=UserWarning,
+)
+
+from .grover import apply_grover  # noqa: E402  -- after warning filter
+from .qreg import Qreg  # noqa: E402
+from .shor import shor_factor  # noqa: E402
 
 
 def _demo_bell() -> None:
