@@ -33,7 +33,7 @@ three landmark algorithms in detail. §12 specifies a small library API
 | [`implementation/original/`](implementation/original) | C99 + LAM/OpenMPI | MPI ranks, dense $2^n\times 2^n$ operator | 2004 artifact, preserved | `make check` (NP=4) | 3 (hard-coded demo) |
 | [`implementation/c/`](implementation/c) | C11 + OpenMPI 5.x | MPI ranks, in-place sparse gates | feature-complete | 75 cases × NP=1,2,4 (+NP=8 for `test-large`) | 60 |
 | [`implementation/go/`](implementation/go) | Go 1.21 | goroutines + `sync.WaitGroup` | feature-complete | 70 cases, race-clean | 26 |
-| [`implementation/python/`](implementation/python) | Python 3.13 + PyTorch | tensor ops on CUDA / ROCm / MPS / CPU | feature-complete | 414 default + 1 gated Shor-21 | 26 (CPU/CUDA), 24 (MPS) |
+| [`implementation/python/`](implementation/python) | Python 3.12+ + PyTorch | tensor ops on CUDA / ROCm / MPS / CPU | feature-complete | 414 default + 1 gated Shor-21 | memory-bound; Shor-15/21 tested |
 
 All three new implementations share the same public surface — a
 `qreg` register type, the named gates (`H`, `X`, `Y`, `Z`, `S`, `T`,
@@ -198,7 +198,7 @@ implementation/
   original/    # 2004 dense-matrix MPI artifact
   c/           # sparse-gate MPI, modern C11
   go/          # goroutines, Go 1.21
-  python/      # PyTorch tensor ops, Python 3.13
+  python/      # PyTorch tensor ops, Python 3.12+
 source code/   # LaTeX sources for qucomp.pdf
 docs/
   superpowers/
