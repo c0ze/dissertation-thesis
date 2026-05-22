@@ -8,7 +8,17 @@ import (
 
 // ShorPeriodResult is the return value of ApplyShorPeriod.
 type ShorPeriodResult struct {
-	R         uint64 // recovered period (0 on failure)
+	// R is the CANDIDATE period extracted from continued-fraction
+	// recovery of c/2^t. It is 0 if recovery failed outright. It is
+	// NOT guaranteed to equal the true order of a mod N: the QFT
+	// readout is stochastic and the continued-fraction step may
+	// return a divisor of the true period, or fail when the measured
+	// integer is not close to a period boundary. Callers must verify
+	// with the classical check  ModPow(a, R, N) == 1  before treating
+	// R as the order. ShorFactor does this implicitly via its outer
+	// retry loop; callers who go through ApplyShorPeriod directly
+	// must handle it themselves.
+	R         uint64
 	MeasuredC uint64 // raw counting-register outcome (for debugging)
 }
 
@@ -84,9 +94,12 @@ func (q *Qreg) ApplyModularExp(countingStart, t, targetStart, n int,
 //  5. Measure counting register -> integer c in [0, 2^t)
 //  6. Recover candidate period r via continued-fraction expansion of c/2^t
 //
-// Returns the recovered period and the raw measured counting value
-// (for debugging). r=0 indicates failure (continued-fraction did not
-// produce a denominator in the valid range).
+// Returns the candidate period and the raw measured counting value (for
+// debugging). The returned R is NOT verified: see ShorPeriodResult.R for
+// the full caveat. R == 0 indicates outright failure (continued-fraction
+// did not produce a denominator in the valid range). Otherwise callers
+// should verify with ModPow(a, R, N) == 1 before treating R as the true
+// order of a mod N.
 func (q *Qreg) ApplyShorPeriod(countingStart, t, targetStart, n int,
 	a, N uint64) ShorPeriodResult {
 	// Init: counting=0, target=1 -- so amp at basis (1 << targetStart) = 1.

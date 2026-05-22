@@ -8,14 +8,21 @@ package qubit
 // loop over targets.
 type OracleFn func(q *Qreg, user interface{})
 
-// ApplyGrover runs `iterations` rounds of Grover's algorithm on the
-// first nQubits qubits.
+// ApplyGrover applies H to each of the first nQubits qubits, then runs
+// `iterations` rounds of oracle + diffusion.
 //
-// Step 1: prepare uniform superposition H|0>^n.
+// Step 1: applies H^n to produce the uniform superposition.
 // Each iteration: oracle (phase mark) + diffusion (2|s><s| - I).
 //
 // The diffusion operator is implemented as: H^n, X^n,
 // multi-controlled-Z, X^n, H^n.
+//
+// Precondition: the first nQubits qubits must be in |0...0> on entry.
+// The Hadamards then produce the uniform superposition the algorithm
+// needs; if the register is in any other state, ApplyGrover still runs
+// the same gate sequence but the result is no longer "standard Grover."
+// Call q.InitBasis(0) first if in doubt. The remaining qubits (indices
+// >= nQubits) are not touched and act as inert ancilla space.
 func (q *Qreg) ApplyGrover(nQubits int, oracle OracleFn, user interface{},
 	iterations int) {
 	assert(nQubits > 0 && nQubits <= q.nQubits,

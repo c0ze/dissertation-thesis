@@ -43,6 +43,28 @@ func TestQFTRoundTrip(t *testing.T) {
 	}
 }
 
+func TestQFTOnBasisOneMatchesAnalyticPhases(t *testing.T) {
+	// QFT|1> on 3 qubits = (1/sqrt(8)) sum_k exp(2 pi i k / 8) |k>.
+	//
+	// Phase-sensitive: we check both real and imaginary parts of every
+	// amplitude against the analytical DFT. Probability tests miss
+	// phase errors -- a faulty QFT that scrambled the phases but
+	// preserved magnitudes would pass TestQFTOfZeroIsUniformSuperposition
+	// without complaint. This catches them.
+	n := 3
+	q, _ := NewQreg(n)
+	q.InitBasis(1)
+	q.ApplyQFT(0, n)
+
+	N := float64(int(1) << n)
+	invSqrtN := 1.0 / math.Sqrt(N)
+	for k := 0; k < int(N); k++ {
+		theta := 2.0 * math.Pi * float64(k) / N
+		want := complex(invSqrtN*math.Cos(theta), invSqrtN*math.Sin(theta))
+		assertAmpNear(t, want, q.amp[k], "QFT|1> analytic phase amp")
+	}
+}
+
 func TestQFTDetectsPeriod(t *testing.T) {
 	// Build a state with period 4 over 4 qubits: |0> + |4> + |8> + |12>,
 	// normalised. After QFT we expect non-trivial probability mass on

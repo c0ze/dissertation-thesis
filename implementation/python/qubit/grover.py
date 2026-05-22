@@ -53,6 +53,18 @@ def apply_grover(
 ) -> None:
     """Run Grover's algorithm on qubits ``[0, n_qubits)`` of ``q``.
 
+    Applies ``H`` to each of the first ``n_qubits`` qubits and then
+    iterates oracle + diffusion (``H^n X^n MCZ X^n H^n``).
+
+    **Precondition:** qubits ``[0, n_qubits)`` must be in
+    :math:`|0\\dots0\\rangle` on entry. The Hadamards then produce the
+    uniform superposition the algorithm needs; if the register is in
+    any other state, this routine still applies the same gate sequence
+    but the meaning of the result is no longer "standard Grover." Call
+    :meth:`Qreg.init_basis(0) <qubit.Qreg.init_basis>` first if in
+    doubt. The remaining qubits (indices ``>= n_qubits``) are not
+    touched and act as inert ancilla space.
+
     Args:
         q: register; ``q.n_qubits >= n_qubits``.
         n_qubits: number of qubits in the search space (the marked
