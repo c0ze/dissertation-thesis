@@ -102,6 +102,28 @@ func (q *Qreg) ApplyModularExp(countingStart, t, targetStart, n int,
 // order of a mod N.
 func (q *Qreg) ApplyShorPeriod(countingStart, t, targetStart, n int,
 	a, N uint64) ShorPeriodResult {
+	// Validate arguments BEFORE the InitBasis mutation, so a bad call
+	// doesn't leave the register half-altered when the panic fires.
+	// We re-validate inside ApplyModularExp too; the upfront check is
+	// only to keep the failure mode clean for users.
+	assert(t >= 1 && n >= 1,
+		"ApplyShorPeriod: t=%d n=%d must be >= 1", t, n)
+	assert(countingStart >= 0 && countingStart+t <= q.nQubits,
+		"ApplyShorPeriod: counting range [%d, %d) out of [0, %d)",
+		countingStart, countingStart+t, q.nQubits)
+	assert(targetStart >= 0 && targetStart+n <= q.nQubits,
+		"ApplyShorPeriod: target range [%d, %d) out of [0, %d)",
+		targetStart, targetStart+n, q.nQubits)
+	cEnd := countingStart + t
+	tEnd := targetStart + n
+	assert(cEnd <= targetStart || tEnd <= countingStart,
+		"ApplyShorPeriod: counting [%d, %d) and target [%d, %d) overlap",
+		countingStart, cEnd, targetStart, tEnd)
+	assert(N >= 2, "ApplyShorPeriod: N=%d must be >= 2", N)
+	assert(N <= uint64(1)<<uint(n),
+		"ApplyShorPeriod: N=%d exceeds target capacity 2^%d", N, n)
+	assert(GCD(a, N) == 1, "ApplyShorPeriod: GCD(a=%d, N=%d) != 1", a, N)
+
 	// Init: counting=0, target=1 -- so amp at basis (1 << targetStart) = 1.
 	q.InitBasis(uint64(1) << uint(targetStart))
 	for i := 0; i < t; i++ {
@@ -112,6 +134,13 @@ func (q *Qreg) ApplyShorPeriod(countingStart, t, targetStart, n int,
 	full := q.MeasureAll()
 	tMask := (uint64(1) << uint(t)) - 1
 	c := (full >> uint(countingStart)) & tMask
+	// A c=0 readout has no period information; ContinuedFraction(0, N)
+	// would return 1/1, which is a perfectly valid fraction but not a
+	// useful period candidate. Report it as outright failure so callers
+	// don't have to special-case R=1 as a sentinel.
+	if c == 0 {
+		return ShorPeriodResult{R: 0, MeasuredC: 0}
+	}
 	// Continued-fraction recovery: r = denominator of best approximation
 	// of c/2^t with denominator <= N.
 	x := float64(c) / float64(uint64(1)<<uint(t))
@@ -127,7 +156,18 @@ func (q *Qreg) ApplyShorPeriod(countingStart, t, targetStart, n int,
 // Allocates its own Qreg (size 2*ceil(log2 N) + 1, the standard width).
 // This is the one entry point that is a package function rather than a
 // method on *Qreg -- it has no "current register" to be a method on.
+//
+// Practical ceiling: with QregMaxQubits=26 and the 3*ceil(log2 N) + 1
+// shortcut layout, the top-level odd-N path supports N up to roughly
+// 8 bits. Larger odd N is rejected upfront with {0, 0, 0}. Even N is
+// short-circuited by the classical /2 shortcut regardless of size.
+//
+// maxAttempts must be > 0. A non-positive value is treated as "no
+// attempts requested" and returns {0, 0, 0} without allocating a Qreg.
 func ShorFactor(N uint64, maxAttempts int) ShorFactorResult {
+	if maxAttempts <= 0 {
+		return ShorFactorResult{P: 0, Q: 0, Attempts: 0}
+	}
 	if N < 2 {
 		return ShorFactorResult{P: 0, Q: 0, Attempts: 0}
 	}

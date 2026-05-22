@@ -1,5 +1,7 @@
 package qubit
 
+import "math"
+
 // GCD returns gcd(a, b) using Euclid's algorithm. gcd(0, n) = n.
 func GCD(a, b uint64) uint64 {
 	for b != 0 {
@@ -73,6 +75,12 @@ func ModPow(base, exp, mod uint64) uint64 {
 // Returns (0, 1) on degenerate inputs: x <= 0 (Shor's c=0 readout
 // case) or maxDenom < 1 (no valid denominator exists, so we return
 // the trivial fraction rather than a 1/0 escape).
+//
+// Overflow-safe: uint64 multiplication wraps silently in Go, so a
+// hostile (ai, h1, k1) triple could produce a small-looking but wrong
+// hNew/kNew. We bail to the previous convergent (h1, k1) before any
+// such multiply, mirroring the same defensive bound the /c sibling
+// uses.
 func ContinuedFraction(x float64, maxDenom uint64) (num, den uint64) {
 	if x <= 0 || maxDenom < 1 {
 		return 0, 1
@@ -83,6 +91,15 @@ func ContinuedFraction(x float64, maxDenom uint64) (num, den uint64) {
 	)
 	for i := 0; i < 64; i++ {
 		ai := uint64(x)
+		// Guard against uint64 overflow in ai*h1+h0 and ai*k1+k0
+		// before we compute them. If either would wrap, the best
+		// convergent we can return is the previous one (h1, k1).
+		if h1 != 0 && ai > (math.MaxUint64-h0)/h1 {
+			return h1, k1
+		}
+		if k1 != 0 && ai > (math.MaxUint64-k0)/k1 {
+			return h1, k1
+		}
 		hNew := ai*h1 + h0
 		kNew := ai*k1 + k0
 		if kNew > maxDenom {

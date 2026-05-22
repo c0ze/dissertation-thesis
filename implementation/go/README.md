@@ -23,7 +23,8 @@ import "github.com/c0ze/dissertation-thesis/implementation/go/qubit"
 
 q, err := qubit.NewQreg(4, qubit.WithSeed(42), qubit.WithWorkers(4))
 if err != nil { /* nQubits out of [1, QregMaxQubits] */ }
-q.InitBasis(0)
+// NewQreg initialises to |0...0>, so you can apply gates immediately.
+// Call q.InitBasis(b) to reset / re-initialise from a different basis.
 q.ApplyH(0)
 q.ApplyCNOT(0, 1)
 fmt.Println("P(00) =", q.ProbOf(0))
@@ -31,7 +32,17 @@ fmt.Println("P(00) =", q.ProbOf(0))
 
 Every state-mutating operation is a method on `*Qreg`. The amplitude
 slice is intentionally unexported; use `Amplitude(i)`, `ProbOf(basis)`,
-or `AmplitudesCopy()` to inspect.
+or `AmplitudesCopy()` to inspect. External Grover oracles should use
+`q.FlipPhase(basis)` to mark amplitudes — that's the exported helper
+that replaces direct `q.amp[mark] = -q.amp[mark]` (which only works
+inside `package qubit`).
+
+```go
+oracle := func(q *qubit.Qreg, user any) {
+    q.FlipPhase(user.(uint64))   // mark the basis state in `user`
+}
+q.ApplyGrover(n, oracle, uint64(mark), iterations)
+```
 
 ## Design notes
 
@@ -46,6 +57,12 @@ or `AmplitudesCopy()` to inspect.
 * **Ceiling.** `QregMaxQubits = 26` (1 GiB amp slice, 2 GiB ModularExp
   peak). Diverges from `/c`'s 60 (which is a shift-overflow bound, not
   an allocation bound).
+* **`ShorFactor` ceiling.** With `QregMaxQubits = 26` and the
+  `3 * ceil(log2 N) + 1` shortcut layout, the top-level odd-N path
+  supports N up to roughly 8 bits (Shor-15, Shor-21 in particular).
+  Larger odd N is rejected upfront with `{0, 0, 0}`. Even N is
+  short-circuited classically regardless of size. Non-positive
+  `maxAttempts` returns `{0, 0, 0}` without allocating a Qreg.
 
 ## Tests
 

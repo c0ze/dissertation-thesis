@@ -36,9 +36,15 @@ type Qreg struct {
 // absolute amp-index for parallelOverIndices.
 type chunkFn func(amp []complex128, lo, hi int)
 
-// NewQreg constructs a Qreg of nQubits qubits, with default
-// GOMAXPROCS(0) workers and a time-seeded RNG. Apply opts in order to
-// override defaults; opts are infallible (see options.go).
+// NewQreg constructs a Qreg of nQubits qubits in the computational
+// basis state |0...0> (amp[0] = 1, all other amplitudes 0), with
+// default GOMAXPROCS(0) workers and a time-seeded RNG. Apply opts in
+// order to override defaults; opts are infallible (see options.go).
+//
+// Starting in |0...0> mirrors the standard quantum-computing convention
+// and lets callers go straight to gate application without an explicit
+// InitBasis(0). Use InitBasis(b) to start from a different basis state,
+// or call it again to reset the register between runs.
 //
 // Returns (nil, error) if nQubits is outside [1, QregMaxQubits]. All
 // other validation failures (out-of-range qubit index on a gate call,
@@ -54,6 +60,7 @@ func NewQreg(nQubits int, opts ...Option) (*Qreg, error) {
 		workers: runtime.GOMAXPROCS(0),
 		rng:     rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
+	q.amp[0] = complex(1, 0)
 	for _, opt := range opts {
 		opt(q)
 	}
@@ -110,4 +117,27 @@ func (q *Qreg) Norm() float64 {
 		sum += real(a)*real(a) + imag(a)*imag(a)
 	}
 	return sum
+}
+
+// FlipPhase negates the amplitude at basis index `basis` (multiplies
+// by -1). Used to build phase oracles for Grover from outside the
+// package; ApplyGrover's OracleFn receives a *Qreg whose amp slice is
+// intentionally unexported, so external callers cannot do
+// `q.amp[mark] = -q.amp[mark]` directly. Use this method instead.
+//
+// Example:
+//
+//	oracle := func(q *qubit.Qreg, user any) {
+//	    q.FlipPhase(user.(uint64))
+//	}
+//	q.ApplyGrover(n, oracle, uint64(mark), iterations)
+//
+// For oracles that mark several basis states by predicate, call
+// FlipPhase in a loop or build a custom helper.
+//
+// Panics if basis is outside [0, 1<<nQubits).
+func (q *Qreg) FlipPhase(basis uint64) {
+	assert(basis < uint64(len(q.amp)),
+		"FlipPhase: basis=%d out of [0, %d)", basis, len(q.amp))
+	q.amp[basis] = -q.amp[basis]
 }

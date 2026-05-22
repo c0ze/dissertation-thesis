@@ -3,9 +3,12 @@ package qubit
 // OracleFn is the user-supplied phase oracle. It receives the register
 // (already prepared in the current Grover step) and a user payload
 // (mark index, predicate, etc.); it must flip the sign of every
-// amplitude whose basis state satisfies the user's predicate. Most
-// callers implement this with a single q.amp[mark] = -q.amp[mark] or a
-// loop over targets.
+// amplitude whose basis state satisfies the user's predicate.
+//
+// External callers (outside package qubit) cannot touch the unexported
+// amp slice directly; they should call q.FlipPhase(basis) for each
+// marked basis state. Same-package code (the bundled tests) may write
+// q.amp[mark] = -q.amp[mark] inline. Both produce the same result.
 type OracleFn func(q *Qreg, user interface{})
 
 // ApplyGrover applies H to each of the first nQubits qubits, then runs
@@ -27,6 +30,10 @@ func (q *Qreg) ApplyGrover(nQubits int, oracle OracleFn, user interface{},
 	iterations int) {
 	assert(nQubits > 0 && nQubits <= q.nQubits,
 		"ApplyGrover: nQubits=%d out of (0, %d]", nQubits, q.nQubits)
+	assert(iterations >= 0,
+		"ApplyGrover: iterations=%d must be >= 0", iterations)
+	assert(iterations == 0 || oracle != nil,
+		"ApplyGrover: nil oracle with iterations=%d", iterations)
 	for i := 0; i < nQubits; i++ {
 		q.ApplyH(i)
 	}

@@ -46,6 +46,20 @@ func TestShorPeriodA7Mod15(t *testing.T) {
 	}
 }
 
+func TestShorFactorRejectsNonPositiveMaxAttempts(t *testing.T) {
+	// Negative or zero maxAttempts is a programmer-error input. The
+	// function should reject it upfront with {0, 0, 0} instead of
+	// silently returning {0, 0, attempts} (which would carry a
+	// negative or zero attempts count -- nonsense as a result struct).
+	for _, m := range []int{-5, -1, 0} {
+		res := ShorFactor(15, m)
+		if res.P != 0 || res.Q != 0 || res.Attempts != 0 {
+			t.Errorf("ShorFactor(15, %d) = {P:%d, Q:%d, Attempts:%d}, want all zero",
+				m, res.P, res.Q, res.Attempts)
+		}
+	}
+}
+
 func TestShorFactorRejectsOversizedN(t *testing.T) {
 	// (2^25 + 1) needs a 3*log2(N)+1 ~= 79-qubit register at
 	// QregMaxQubits=26. ShorFactor should reject upfront rather than
