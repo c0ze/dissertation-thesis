@@ -6,7 +6,7 @@ This section documents the simulator API that realises the sparse-gate strategy 
 
 \subsection{The quantum register}
 
-A quantum register is represented by an opaque struct holding a local slice of the distributed state vector together with the MPI bookkeeping that identifies which slice this process owns:
+A quantum register is represented by a public struct holding a local slice of the distributed state vector together with the MPI bookkeeping that identifies which slice this process owns. The fields below are intentionally part of the API surface so that test code, dump utilities, and tight inner loops can read them without going through accessors; the contract for callers is that the lifecycle and state-mutating operations all run through the library functions listed later in this chapter.
 
 \begin{lstlisting}
 typedef struct {
@@ -101,7 +101,9 @@ The chapters on the QFT (Section~\ref{sec:qft}), Grover (Section~\ref{sec:grover
 typedef void (*oracle_fn)(qreg *q, void *user);
 
 typedef struct {
-    uint64_t r;            /* recovered period (0 on failure)      */
+    uint64_t r;            /* candidate period from continued        *
+                            * fractions; verify a^r mod N == 1       *
+                            * before treating as the true order      */
     uint64_t measured_c;   /* raw counting-register outcome        */
 } shor_period_result;
 

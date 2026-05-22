@@ -130,6 +130,13 @@ shor_factor_result shor_factor(uint64_t N, int max_attempts) {
         /* pr.r is identical on every rank because measure_qubit broadcasts
          * its outcome and continued_fraction is deterministic. */
         if (r == 0 || (r & 1)) continue;
+        /* Verify r is actually a period of a mod N. Continued-fraction
+         * recovery can return a divisor of the true order when the
+         * measured integer is not aligned to a period boundary; the
+         * gcd-extraction step below would just produce trivial factors
+         * in that case and we'd retry, but it's cheaper to filter
+         * upfront and matches what shor.h's docstring promises.       */
+        if (mod_pow(a, r, N) != 1) continue;
         uint64_t x  = mod_pow(a, r / 2, N);
         if (x + 1 == N) continue;
         uint64_t p1 = gcd_u64(x + 1, N);

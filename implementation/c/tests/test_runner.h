@@ -8,8 +8,11 @@
 /* Per spec §7.2. Every test_<module>.c expands TEST_RUNNER_MAIN() once at
  * the bottom of the file. The macro produces a complete main() that:
  *   - initialises MPI;
- *   - silences stdout/stderr on rank > 0 before UnityBegin, so only
- *     rank 0's report reaches the user;
+ *   - silences stdout on rank > 0 before UnityBegin, so only rank 0's
+ *     Unity pass/fail report reaches the user. Stderr is deliberately
+ *     left open on every rank because QREG_ASSERT messages go to
+ *     stderr from whichever rank tripped the abort, and silencing
+ *     them on workers used to lose the diagnostic.
  *   - runs the suite via the file-local register_tests() function;
  *   - calls UnityEnd() on EVERY rank (it finalises Unity's failure
  *     count), then MPI_LOR-reduces the per-rank pass/fail bit so any
@@ -23,7 +26,6 @@
         int _rank;  MPI_Comm_rank(MPI_COMM_WORLD, &_rank);                  \
         if (_rank != 0) {                                                   \
             freopen("/dev/null", "w", stdout);                              \
-            freopen("/dev/null", "w", stderr);                              \
         }                                                                   \
         UnityBegin(__FILE__);                                               \
         register_tests();                                                   \

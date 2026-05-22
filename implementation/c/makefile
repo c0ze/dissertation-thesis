@@ -23,11 +23,11 @@
 # ---------------------------------------------------------------------------
 
 MPICC      ?= mpicc
-CFLAGS     ?= -std=c11 -O2 -Wall -Wextra
+CFLAGS     ?= -std=gnu11 -O2 -Wall -Wextra
 LDFLAGS    ?= -lm
 
 ifeq ($(DEBUG),1)
-    CFLAGS  := -std=c11 -O0 -g -Wall -Wextra -fsanitize=address -fsanitize=undefined
+    CFLAGS  := -std=gnu11 -O0 -g -Wall -Wextra -fsanitize=address -fsanitize=undefined
     LDFLAGS += -fsanitize=address -fsanitize=undefined
 endif
 
@@ -68,7 +68,7 @@ $(BUILDDIR)/%.o: %.c | dirs
 
 # Unity compiled separately with relaxed warnings.
 $(UNITY_OBJ): tests/unity/unity.c | dirs
-	$(MPICC) -std=c11 -O2 -w -DUNITY_INCLUDE_DOUBLE -c $< -o $@
+	$(MPICC) -std=gnu11 -O2 -w -DUNITY_INCLUDE_DOUBLE -c $< -o $@
 
 # Compile a test source plus the library plus Unity into a test binary.
 $(TESTDIR)/%: tests/%.c $(LIB_OBJS) $(UNITY_OBJ) | dirs

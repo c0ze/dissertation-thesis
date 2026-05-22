@@ -63,6 +63,8 @@ void redistribute_pairs(qreg *q, const size_t *global_indices,
     int *recv_counts = calloc(P, sizeof *recv_counts);
     int *send_displs = calloc(P, sizeof *send_displs);
     int *recv_displs = calloc(P, sizeof *recv_displs);
+    QREG_ASSERT(send_counts && recv_counts && send_displs && recv_displs,
+                "redistribute_pairs: per-rank count/displs calloc failed");
 
     /* Count destinations. */
     for (size_t i = 0; i < n_pairs; i++) {
@@ -88,6 +90,8 @@ void redistribute_pairs(qreg *q, const size_t *global_indices,
     uint64_t       *send_off = malloc((size_t)total_send * sizeof *send_off);
     complex double *send_val = malloc((size_t)total_send * sizeof *send_val);
     int *cursor = calloc(P, sizeof *cursor);
+    QREG_ASSERT((total_send == 0 || (send_off && send_val)) && cursor,
+                "redistribute_pairs: send-buffer allocation failed");
     for (size_t i = 0; i < n_pairs; i++) {
         int dest = (int)(global_indices[i] >> (q->n_qubits - q->p));
         int slot = send_displs[dest] + cursor[dest]++;
@@ -98,6 +102,8 @@ void redistribute_pairs(qreg *q, const size_t *global_indices,
 
     uint64_t       *recv_off = malloc((size_t)total_recv * sizeof *recv_off);
     complex double *recv_val = malloc((size_t)total_recv * sizeof *recv_val);
+    QREG_ASSERT(total_recv == 0 || (recv_off && recv_val),
+                "redistribute_pairs: recv-buffer allocation failed");
 
     /* Two Alltoallv calls: one for offsets, one for amplitudes. */
     MPI_Alltoallv(send_off, send_counts, send_displs, MPI_UINT64_T,

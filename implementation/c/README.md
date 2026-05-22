@@ -138,6 +138,12 @@ past its current envelope:
   correctness). Without an explicit seed the sequence is
   deterministic across runs. Call `qreg_seed(q, seed)` to seed
   before measurement; `shor_factor` seeds itself on first use.
+* **`qreg_dump` is small-state diagnostic only.** It calls
+  `MPI_Gather` with `(int)q->local_size`, materialising the entire
+  state vector on rank 0. Fine for the test sizes the suite
+  exercises; not intended for production runs where the local
+  slice exceeds `INT_MAX` complex amplitudes or where the global
+  state will not fit on a single rank's heap.
 
 ## Status
 

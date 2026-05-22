@@ -109,6 +109,7 @@ static void apply_u_global(qreg *q, int target, complex double u[2][2]) {
     int   mybit   = (q->rank >> tbit) & 1;
     int   partner = q->rank ^ (1 << tbit);
     complex double *buf = malloc(q->local_size * sizeof *buf);
+    QREG_ASSERT(buf != NULL, "global-gate partner-exchange buf: malloc failed");
     exchange_amplitudes(q, partner, buf);
     /* Combine our slice with the partner's slice. We hold the value of
      * qubit `target` == mybit; partner held the opposite bit. The pair
@@ -218,6 +219,7 @@ static void apply_cu_c_local_t_global(qreg *q, int control, int target,
     int partner = q->rank ^ (1 << tbit);
     size_t cmask = (size_t)1 << control;
     complex double *buf = malloc(q->local_size * sizeof *buf);
+    QREG_ASSERT(buf != NULL, "global-gate partner-exchange buf: malloc failed");
     exchange_amplitudes(q, partner, buf);
     if (mybit == 0) {
         for (size_t i = 0; i < q->local_size; i++) {
@@ -265,6 +267,7 @@ static void apply_cu_both_global(qreg *q, int control, int target,
     int mybit   = (q->rank >> tbit) & 1;
     int partner = q->rank ^ (1 << tbit);
     complex double *buf = malloc(q->local_size * sizeof *buf);
+    QREG_ASSERT(buf != NULL, "global-gate partner-exchange buf: malloc failed");
     exchange_amplitudes(q, partner, buf);
     if (mybit == 0) {
         for (size_t i = 0; i < q->local_size; i++) {
@@ -455,14 +458,19 @@ size_t measure_all(qreg *q) {
     int picks_in = (chosen_rank == q->rank) ? q->rank : -1;
     int max_rank = -1;
     MPI_Allreduce(&picks_in, &max_rank, 1, MPI_INT, MPI_MAX, q->comm);
-    size_t global_out = chosen_global;
-    MPI_Bcast(&global_out, 1, MPI_UNSIGNED_LONG, max_rank, q->comm);
+    QREG_ASSERT(max_rank >= 0,
+                "measure_all: no rank selected (norm drift?)");
+    /* uint64_t storage + MPI_UINT64_T for LP64/LLP64 portability;
+     * size_t with MPI_UNSIGNED_LONG would be 4 bytes on Windows.        */
+    uint64_t global_out = (uint64_t)chosen_global;
+    MPI_Bcast(&global_out, 1, MPI_UINT64_T, max_rank, q->comm);
     /* Collapse the state: every amplitude except global_out is zeroed. */
     for (size_t i = 0; i < q->local_size; i++) q->amp[i] = 0.0;
-    if (rank_owns(q, global_out)) {
-        q->amp[global_to_local(q, global_out)] = 1.0;
+    size_t global_out_sz = (size_t)global_out;
+    if (rank_owns(q, global_out_sz)) {
+        q->amp[global_to_local(q, global_out_sz)] = 1.0;
     }
-    return global_out;
+    return global_out_sz;
 }
 
 void sample_distribution(const qreg *q, size_t *out, int shots) {
@@ -493,7 +501,10 @@ void qreg_dump(const qreg *q, FILE *f) {
     /* Gather to rank 0 and print. */
     size_t total = (size_t)1 << q->n_qubits;
     complex double *full = NULL;
-    if (q->rank == 0) full = malloc(total * sizeof *full);
+    if (q->rank == 0) {
+        full = malloc(total * sizeof *full);
+        QREG_ASSERT(full != NULL, "qreg_dump: gather-buffer malloc failed");
+    }
     MPI_Gather(q->amp,                       (int)q->local_size, MPI_C_DOUBLE_COMPLEX,
                full,                          (int)q->local_size, MPI_C_DOUBLE_COMPLEX,
                0, q->comm);

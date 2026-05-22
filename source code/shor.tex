@@ -43,7 +43,7 @@ The inverse QFT in step 3 concentrates probability mass on values of $c$ such th
 
 \subsection{The expensive subroutine: modular exponentiation}
 
-Implementing the controlled-$U_a^{2^j}$ gates is the dominant cost of Shor's algorithm. The standard construction builds quantum ripple-carry adders, lifts those to modular addition, lifts modular addition to modular multiplication, and finally lifts modular multiplication to modular exponentiation. The most efficient known circuits use $O(n^3)$ gates and dominate the algorithm's total gate count. The Beauregard $2n+1$-qubit circuit \cite{beauregard2003} is the standard textbook construction.
+Implementing the controlled-$U_a^{2^j}$ gates is the dominant cost of Shor's algorithm. The standard construction builds quantum ripple-carry adders, lifts those to modular addition, lifts modular addition to modular multiplication, and finally lifts modular multiplication to modular exponentiation. The most efficient known circuits use $O(n^3)$ gates and dominate the algorithm's total gate count. The Beauregard $2n+3$-qubit circuit \cite{beauregard2003} is the standard textbook construction.
 
 In a state-vector simulator, there are two options.
 
@@ -68,7 +68,10 @@ void apply_modular_exp(qreg *q, int counting_start, int t,
         size_t   global = global_index(q, idx);
         uint64_t x      = (global >> counting_start) & ((1ULL << t) - 1);
         uint64_t y      = (global >> target_start)   & ((1ULL << n) - 1);
-        uint64_t y_new  = (y * mod_pow(a, x, N)) % N;
+        /* Pass-through for y >= N keeps the map a permutation over the
+         * full 2^n target register; without it, reserved states y >= N
+         * would all collapse into [0, N), breaking reversibility.    */
+        uint64_t y_new  = (y < N) ? (y * mod_pow(a, x, N)) % N : y;
         size_t   new_global = (global
             & ~(((1ULL << n) - 1) << target_start))
             | ((size_t)y_new << target_start);
