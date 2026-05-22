@@ -61,6 +61,29 @@ void apply_controlled_gate(complex double *amp, int n,
 
 These two primitives --- single-qubit gate and controlled single-qubit gate --- are sufficient to construct every algorithm in this thesis, including the QFT, Grover's algorithm, and Shor's algorithm presented in the next three sections. This is also the approach that QC-lib \cite{pgsq03}, QuEST, Intel-QS / qHiPSTER \cite{smelyanskiy2016}, and Qiskit Aer all converge on, for the same reasons given above.
 
+\subsection{Asymptotic comparison}
+
+Table~\ref{tab:dense-vs-sparse} summarises the cost difference. The state vector itself is the same size in both approaches; it is the operator and the per-gate work that change. The sparse-gate approach pays $\Theta(2^n)$ per single-qubit or two-qubit gate without ever materialising a $2^n \times 2^n$ matrix. The dense-matrix approach pays $\Theta(2^{2n})$ per gate \emph{and} has to store the operator. Only a truly dense, arbitrary $2^n \times 2^n$ unitary --- which the algorithms in this thesis never use --- forces $\Theta(2^{2n})$ on the sparse-gate side.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\hline
+\textbf{Operation} & \textbf{Dense-matrix approach} & \textbf{Sparse-gate approach} \\
+\hline
+Store state vector              & $\Theta(2^n)$  & $\Theta(2^n)$ \\
+Store full operator             & $\Theta(2^{2n})$ & not materialised \\
+Apply one-qubit gate            & $\Theta(2^{2n})$ & $\Theta(2^n)$ \\
+Apply two-qubit gate            & $\Theta(2^{2n})$ & $\Theta(2^n)$ \\
+Apply controlled-$U$ gate       & $\Theta(2^{2n})$ & $\Theta(2^n)$ \\
+Apply arbitrary dense unitary   & $\Theta(2^{2n})$ & $\Theta(2^{2n})$ (unavoidable) \\
+Memory wall on a cluster        & $n \approx 20$ regardless of $P$ & scales with aggregate RAM \\
+\hline
+\end{tabular}
+\caption{Asymptotic cost per operation for an $n$-qubit register under the dense-matrix and sparse-gate strategies. The dense-matrix row counts assume the operator is constructed before being applied; the sparse-gate row counts assume in-place pair updates as described in Section~\ref{sec:parallel}.}
+\label{tab:dense-vs-sparse}
+\end{table}
+
 \subsection{Distributed state vector across MPI nodes}
 
 For $n$ large enough that the state vector exceeds a single node's memory, we distribute it across $P = 2^p$ processes. The process of rank $r$ holds the amplitudes whose global index has the top $p$ bits equal to $r$; equivalently, the top $p$ bits of the global index identify the rank and the bottom $n-p$ bits give the local offset within that rank.

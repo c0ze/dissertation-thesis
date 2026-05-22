@@ -42,7 +42,7 @@ Quantum computing is not without drawbacks. The exponential parallelism inherent
 
 Because of these difficulties, simulation on classical computers remains essential to algorithm development and analysis. Quantum simulators allow inspection of the full state, accumulation of errors under noise models, and feasibility studies that would otherwise require physical hardware. However, simulating an $n$-qubit register on a classical machine requires storing $2^n$ complex amplitudes, which restricts simulators to relatively small register sizes --- the central scaling problem that motivates the parallel implementation discussed later in this thesis.
 
-Real quantum computers do exist that operate on 5--7 qubits, and Shor's algorithm was demonstrated on a 7-qubit machine in 2001 \cite{vandersypen2001}.
+When this thesis was first submitted in 2004, real quantum computers operated on roughly 5--7 qubits; Shor's algorithm had been demonstrated on a 7-qubit nuclear-magnetic-resonance machine in 2001 \cite{vandersypen2001}. Two decades on, the picture is very different: superconducting processors with hundreds of physical qubits are now in service.\footnote{For up-to-date device counts see IBM's processor catalogue (\emph{https://quantum.cloud.ibm.com/docs/en/guides/processor-types}); as of this revision the Heron r2 carries 156 qubits and the Nighthawk r1 carries 120.} Even so, error correction is still a heavy multiplier on physical-to-logical qubit counts, and classical simulation remains essential for algorithm design and verification --- which is the practical motivation for the work that follows.
 
 \begin{figure}
 \begin{center}
