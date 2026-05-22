@@ -117,7 +117,7 @@ shor_factor_result shor_factor(uint64_t N, int max_attempts) {
         /* Rank 0 picks a, then broadcasts so all ranks agree. */
         uint64_t a = 0;
         if (rank == 0) a = 2 + ((uint64_t)rand() % (N - 3));
-        MPI_Bcast(&a, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&a, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
         /* gcd is deterministic; every rank computes the same g. */
         uint64_t g = gcd_u64(a, N);
         if (g > 1) { out.p = g; out.q = N / g; return out; }

@@ -70,8 +70,23 @@ void apply_swap(qreg *q, int a, int b);
 /* Phase-flip the single all-ones amplitude |1...1> on the first n qubits. */
 void apply_multi_controlled_z(qreg *q, int n);
 
+/* Generalised Toffoli: flip target iff every control is set.
+ *
+ * v1 limitation: every control AND the target must be a LOCAL qubit
+ *   (index < n_qubits - p). The distributed version would itself
+ *   decompose into a Toffoli + ancilla ladder and is left for a
+ *   follow-up. Passing a global control or target aborts via
+ *   QREG_ASSERT.                                                       */
 void apply_multi_controlled_x(qreg *q, const int *controls, int n_controls,
                               int target);
+
+/* Seed the rank-0 stdlib RNG used by measure_qubit / measure_all /
+ * sample_distribution. Call once on rank 0 (or on every rank with the
+ * same seed) before measurement; otherwise the default C-library
+ * sequence is deterministic across runs. shor_factor seeds itself on
+ * first use, so a caller that only goes through shor_factor does not
+ * need to call this.                                                   */
+void qreg_seed(qreg *q, uint64_t seed);
 
 int measure_qubit(qreg *q, int target);
 

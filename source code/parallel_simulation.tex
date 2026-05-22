@@ -59,7 +59,7 @@ void apply_controlled_gate(complex double *amp, int n,
 }
 \end{lstlisting}
 
-These two primitives --- single-qubit gate and controlled single-qubit gate --- are sufficient to construct every algorithm in this thesis, including the QFT, Grover's algorithm, and Shor's algorithm presented in the next three sections. This is also the approach that QC-lib \cite{pgsq03}, QuEST, Intel-QS / qHiPSTER \cite{smelyanskiy2016}, and Qiskit Aer all converge on, for the same reasons given above.
+These two primitives --- single-qubit gate and controlled single-qubit gate --- are sufficient to construct every algorithm in this thesis, including the QFT, Grover's algorithm, and Shor's algorithm presented in the next three sections. This is also the approach that QC-lib \cite{pgsq03}, QuEST \cite{quest2019}, Intel-QS / qHiPSTER \cite{smelyanskiy2016}, and Qiskit Aer \cite{qiskitaer2024} all converge on, for the same reasons given above; for textbook background on the underlying postulates and circuit model, see Nielsen and Chuang \cite{nielsenchuang2010}.
 
 \subsection{Asymptotic comparison}
 
@@ -122,7 +122,7 @@ For a circuit of $G$ gates on $n$ qubits distributed across $P$ processes, the r
 \item Communication per global-qubit gate: $\Theta(2^n / P)$ complex numbers exchanged with one partner process.
 \item Memory per process: $16 \cdot 2^n / P$ bytes.
 \end{itemize}
-This scales. A modern cluster with $64$ nodes at $256\,\text{GB}$ RAM each holds $n=40$ qubits comfortably, well beyond what the original dense-matrix approach can reach. The dense approach, by contrast, hits a memory wall at roughly $n=20$ \emph{regardless of cluster size}, because the bottleneck is materialising the operator rather than distributing it.
+This scales. A modern cluster with $64$ nodes at $256\,\text{GiB}$ RAM each has $64 \times 256\,\text{GiB} = 16\,\text{TiB}$ of aggregate memory, which is exactly the size of a $40$-qubit complex-double state vector ($2^{40} \times 16\,\text{bytes}$). The cluster therefore \emph{can} hold a $40$-qubit register in principle, but the raw fit leaves no headroom for OS overhead, MPI buffers, the transient second slice that pairwise exchange allocates during a global-qubit gate, allocator slack, logging, or any temporary that gather/dump operations introduce. Practical $40$-qubit runs require either fewer qubits, more memory per node, single-precision amplitudes (halving the state-vector size at the cost of accumulated rounding), careful chunking, or out-of-core / GPU-aware techniques. The dense-matrix approach, by contrast, hits a memory wall at roughly $n=20$ \emph{regardless of cluster size}, because the bottleneck is materialising the operator rather than distributing it.
 
 \subsection{Relation to the original library}
 

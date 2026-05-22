@@ -110,6 +110,33 @@ static void test_qft_on_4_qubits_uniform_from_zero(void) {
     qreg_destroy(q);
 }
 
+static void test_qft_on_basis_one_matches_analytic_phases(void) {
+    /* QFT|1> on 3 qubits = (1/sqrt(8)) sum_k exp(2 pi i k / 8) |k>.
+     *
+     * This is a phase-sensitive test: we check the complex amplitudes
+     * directly (real and imaginary parts), not just |amp|^2. Probability
+     * tests miss phase errors -- a faulty QFT that scrambled the phases
+     * but preserved magnitudes would still pass test_qft_of_zero_is_uniform.
+     * This test catches them.                                            */
+    int n = 3;
+    qreg *q = qreg_create(n, MPI_COMM_WORLD);
+    if (!q) { TEST_PASS(); return; }
+    qreg_init_basis(q, 1);
+    apply_qft(q, 0, n);
+
+    double inv_sqrt_N = 1.0 / sqrt((double)(1 << n));
+    for (size_t k = 0; k < (size_t)(1 << n); k++) {
+        complex double expected =
+            cexp(I * 2.0 * QREG_PI * (double)k / (double)(1 << n)) * inv_sqrt_N;
+        int owning_rank = (int)(k >> (q->n_qubits - q->p));
+        if (q->rank == owning_rank) {
+            size_t off = k & (q->local_size - 1);
+            ASSERT_NEAR_AMP(expected, q->amp[off]);
+        }
+    }
+    qreg_destroy(q);
+}
+
 static void test_qft_round_trip_on_basis_states(void) {
     /* Run QFT-then-inverse on several different basis inputs and
      * confirm each returns to its starting state. Spot-checks that the
@@ -140,6 +167,7 @@ void register_tests(void) {
     RUN_TEST(test_qft_preserves_norm_on_basis_state);
     RUN_TEST(test_qft_on_4_qubits_uniform_from_zero);
     RUN_TEST(test_qft_round_trip_on_basis_states);
+    RUN_TEST(test_qft_on_basis_one_matches_analytic_phases);
 }
 
 TEST_RUNNER_MAIN()

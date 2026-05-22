@@ -1,7 +1,8 @@
 \setcounter{equation}{0}
 \section{Library Documentation}
+\label{sec:libdoc}
 
-This section documents the simulator API that would replace the historical 2004 library if the sparse-gate strategy of Section~\ref{sec:parallel} were implemented in full. The 2004 source bundled with this distribution (under \texttt{implementation/\allowbreak original/}) implements the older dense-matrix approach and is preserved as a historical artifact; the API below is what the corrected design calls for.
+This section documents the simulator API that realises the sparse-gate strategy of Section~\ref{sec:parallel}. The API is implemented in the bundled \texttt{implementation/c/} directory (a C11 + OpenMPI 5.x library); a coverage matrix linking each claim in this chapter to the corresponding source file lives at \texttt{implementation/c/assessment.md}. Two sibling implementations using the same public surface accompany it: a pure-Go goroutine-parallel port under \texttt{implementation/\allowbreak go/} and a PyTorch tensor-ops port under \texttt{implementation/\allowbreak python/}. The historical 2004 source, which implements the older dense-matrix approach critiqued in Section~\ref{sec:parallel}, is preserved separately under \texttt{implementation/\allowbreak original/}.
 
 \subsection{The quantum register}
 
@@ -138,4 +139,4 @@ typedef struct {
 } matrix;
 \end{lstlisting}
 
-with operations \verb|create_matrix|, \verb|tensor_product|, \verb|dot_product|, and the MPI primitives \verb|send_matrix|, \verb|get_matrix|, and \verb|broadcast_matrix|. This code targets the original dense-matrix strategy critiqued in Section~\ref{sec:parallel} and is retained here for historical reference. The API documented above is the design that should replace it; implementation of the corrected library is left as future work.
+with operations \verb|create_matrix|, \verb|tensor_product|, \verb|dot_product|, and the MPI primitives \verb|send_matrix|, \verb|get_matrix|, and \verb|broadcast_matrix|. This code targets the original dense-matrix strategy critiqued in Section~\ref{sec:parallel} and is retained here for historical reference. The API documented above is the design that replaces it; the bundled \texttt{implementation/c/} library is a working v1 of that design, with limitations documented in its README and assessment matrix (chief among them: per-MPI-message counts are limited to \texttt{INT\_MAX}, distributed multi-controlled-X is not yet supported, and Shor coverage is exercised against $N=15$ and $N=21$).

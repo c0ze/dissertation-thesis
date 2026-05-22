@@ -47,6 +47,18 @@ void qreg_init_basis(qreg *q, size_t basis_state) {
     }
 }
 
+void qreg_seed(qreg *q, uint64_t seed) {
+    QREG_ASSERT(q != NULL, "qreg_seed: q is NULL");
+    /* Measurement runs on rank 0 and broadcasts the outcome, so only
+     * rank 0's RNG state matters. Calling srand() on the other ranks
+     * is harmless but pointless. We accept the seed on every rank so
+     * the API is rank-agnostic and SPMD callers can drop the call in
+     * unconditionally.                                                  */
+    if (q->rank == 0) {
+        srand((unsigned)seed);
+    }
+}
+
 double qreg_norm(const qreg *q) {
     QREG_ASSERT(q != NULL, "qreg_norm: q is NULL");
     double local = 0.0;

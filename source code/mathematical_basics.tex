@@ -48,10 +48,15 @@ This is a $2^n \times 2^n$ matrix, but it is extremely sparse: each row has exac
 
 A quantum program transforming an $n$-qubit register from input to output state can in principle be written as a $2^n \times 2^n$ unitary matrix which, when multiplied by the input-state vector, yields the output-state vector. Quantum computation must be information-lossless (and therefore reversible at each gate); the operator must be unitary.
 
-What about classical functions that are not bijections? Any classical function $f:\{0,1\}^n \to \{0,1\}^m$ can be made reversible --- and hence unitary --- using the Bennett construction. Append an $m$-qubit ancilla register initialised to $\ket{0}$ and define
+What about classical functions that are not bijections? Any classical function $f:\{0,1\}^n \to \{0,1\}^m$ can be made reversible --- and hence unitary --- using the Bennett construction. Append an $m$-qubit ancilla register and define $U_f$ on the entire joint Hilbert space by its action on computational basis states,
 \begin{equation}
-U_f\, \ket{x}\ket{0} \;=\; \ket{x}\ket{f(x)}.
+U_f\, \ket{x}\ket{y} \;=\; \ket{x}\bigl|\,y \oplus f(x)\bigr\rangle,
+\label{eq:bennett-xor}
 \end{equation}
-The first register is preserved, so $U_f$ is a permutation of computational basis states and therefore a unitary matrix on the joint $2^{n+m}$-dimensional space \cite{bennett1973}. This is the standard ``bit oracle'' pattern used by Deutsch--Jozsa, Grover, and Shor (and reappears in Sections~\ref{sec:grover} and~\ref{sec:shor}). The earlier claim --- common in informal expositions --- that a unitary exists ``whenever $f$ is one-to-one'' is technically insufficient: it is the Bennett ancilla trick that promotes \emph{any} classical function to a unitary, regardless of whether the original $f$ was injective.
+where $\oplus$ denotes bitwise XOR. The first register is preserved and the second is shifted by $f(x)$, so $U_f$ is a permutation of computational basis states and therefore a unitary matrix on the joint $2^{n+m}$-dimensional space \cite{bennett1973}. The familiar special case
+\begin{equation*}
+U_f\, \ket{x}\ket{0} \;=\; \ket{x}\bigl|\,f(x)\bigr\rangle
+\end{equation*}
+recovers the value of $f(x)$ in the ancilla register, but the full XOR form is needed to make $U_f$ unitary on \emph{all} of $\mathbb{C}^{2^{n+m}}$, not just on the subspace where the ancilla is $\ket{0}$. This is the standard ``bit oracle'' pattern used by Deutsch--Jozsa, Grover, and Shor (and reappears in Sections~\ref{sec:grover} and~\ref{sec:shor}). The earlier claim --- common in informal expositions --- that a unitary exists ``whenever $f$ is one-to-one'' is technically insufficient: it is the Bennett ancilla trick that promotes \emph{any} classical function to a unitary, regardless of whether the original $f$ was injective.
 
 The combined effect of single-qubit gates applied in parallel to disjoint qubits in a register is the tensor product of the individual gate matrices. Combined with the in-place sparse-application algorithm of Section~\ref{sec:parallel}, this is all the machinery one needs to simulate any quantum circuit.

@@ -79,25 +79,29 @@ void redistribute_pairs(qreg *q, const size_t *global_indices,
         recv_displs[r] = total_recv; total_recv += recv_counts[r];
     }
 
-    /* Pack: each pair as (size_t local_offset, complex double value).
-     * We send local-offsets so the receiver can apply them directly.    */
-    size_t         *send_off = malloc((size_t)total_send * sizeof *send_off);
+    /* Pack: each pair as (uint64_t local_offset, complex double value).
+     * Offsets are uint64_t (not size_t) so the matched MPI type
+     * MPI_UINT64_T is portable across LP64 (Linux/macOS) and LLP64
+     * (Windows) toolchains, where MPI_UNSIGNED_LONG would otherwise
+     * be 8 bytes on one and 4 on the other. The implementation does
+     * not target Windows today, but the fix is one-character cheap.    */
+    uint64_t       *send_off = malloc((size_t)total_send * sizeof *send_off);
     complex double *send_val = malloc((size_t)total_send * sizeof *send_val);
     int *cursor = calloc(P, sizeof *cursor);
     for (size_t i = 0; i < n_pairs; i++) {
         int dest = (int)(global_indices[i] >> (q->n_qubits - q->p));
         int slot = send_displs[dest] + cursor[dest]++;
-        send_off[slot] = global_indices[i] & (q->local_size - 1);
+        send_off[slot] = (uint64_t)(global_indices[i] & (q->local_size - 1));
         send_val[slot] = values[i];
     }
     free(cursor);
 
-    size_t         *recv_off = malloc((size_t)total_recv * sizeof *recv_off);
+    uint64_t       *recv_off = malloc((size_t)total_recv * sizeof *recv_off);
     complex double *recv_val = malloc((size_t)total_recv * sizeof *recv_val);
 
     /* Two Alltoallv calls: one for offsets, one for amplitudes. */
-    MPI_Alltoallv(send_off, send_counts, send_displs, MPI_UNSIGNED_LONG,
-                  recv_off, recv_counts, recv_displs, MPI_UNSIGNED_LONG,
+    MPI_Alltoallv(send_off, send_counts, send_displs, MPI_UINT64_T,
+                  recv_off, recv_counts, recv_displs, MPI_UINT64_T,
                   q->comm);
     MPI_Alltoallv(send_val, send_counts, send_displs, MPI_C_DOUBLE_COMPLEX,
                   recv_val, recv_counts, recv_displs, MPI_C_DOUBLE_COMPLEX,
@@ -105,7 +109,7 @@ void redistribute_pairs(qreg *q, const size_t *global_indices,
 
     /* Accumulate. */
     for (int i = 0; i < total_recv; i++) {
-        q->amp[recv_off[i]] += recv_val[i];
+        q->amp[(size_t)recv_off[i]] += recv_val[i];
     }
 
     free(send_off); free(send_val); free(recv_off); free(recv_val);

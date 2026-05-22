@@ -2,7 +2,10 @@
 # makefile for implementation/c -- sparse-gate MPI quantum simulator
 #
 # Targets:
-#   make                 build libqubit.a (when sources exist) and bin/qubit
+#   make                 compile library objects under build/ and link
+#                          the bin/qubit demo. No archive (libqubit.a) is
+#                          produced; tests and the demo link the .o files
+#                          directly. Add an `ar` step if you need one.
 #   make test            build and run every tests/test_*.c at NP=1, 2, 4
 #   make test-large      runs the suite at NP=1,2,4,8 and sets
 #                          RUN_SHOR_21=1 to unlock the 16-qubit
