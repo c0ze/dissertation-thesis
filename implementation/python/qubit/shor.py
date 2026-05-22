@@ -403,6 +403,14 @@ def shor_factor(
         if r == 0 or r % 2 != 0:
             continue
 
+        # Verify r is actually a period of a mod N. Continued-fraction
+        # recovery can return a divisor of the true order; the gcd
+        # extraction below would just produce trivial factors in that
+        # case and we'd retry, but it's cheaper to filter upfront and
+        # matches the verification promise documented on apply_shor_period.
+        if mod_pow(a, r, N) != 1:
+            continue
+
         half = mod_pow(a, r // 2, N)
         if half == N - 1:
             # a^(r/2) ≡ -1 (mod N) -- the gcd step would only yield
