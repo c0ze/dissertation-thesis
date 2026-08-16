@@ -1,0 +1,1466 @@
+================================================================================
+  qucomp-original.pdf  --  2004 dissertation (Arda Karaduman, Istanbul Bilgi)
+  Extracted with: pdftotext -layout qucomp-original.pdf
+================================================================================
+
+                    İSTANBUL BİLGİ UNIVERSITY
+                               FACULTY of
+                       SCIENCE AND LETTERS
+
+
+ Quantum Computation : Implementation of Quantum Gates on Linux Clusters
+
+
+
+                               SUBMITTED By
+                               Arda Karaduman
+
+
+         In Partial Fulfillment of the Requirements for the Degree of
+                    Bachelor of Science in Computer Science
+
+
+                                 July 25, 2004
+
+
+
+                               APPROVED By
+ Chris Stephenson                                             Bülent Özel
+Head of Department                                     Dissertation Supervisor
+                                    Statement of Originality
+
+
+
+
+I, the undersigned, declare that this project is my own original work, and I give permission that it
+may be photocopied and made available for interlibrary loan.
+
+
+
+   Name:
+
+   Signed:
+
+   Date:
+                                                                                                  i
+
+
+
+
+                                            Abstract
+
+
+This thesis gives a brief introduction to Quantum Computation and discusses implementation
+schemas for a Quantum Computer simulator on a distributed system. Research into Quantum
+
+Computers have increased drastically since Peter Shor showed that some problems which can
+only be solved in exponential time with classical computers can be solved in polynomial time with
+quantum computers. Other algorithms have also been discovered where Quantum Computers
+have an advantage over their classical counterparts. There are still great difficulties in physical
+
+realization of Quantum Computers, and so far machines with only a few bits of memory have
+been accomplished. Because of this, much of the research into Quantum Computation algorithms
+make use of simulators. Due to the fundamental differences between Classical Computers and
+Quantum Computers it is quite inefficient to simulate a Quantum Computer with a reasonable
+
+memory. This thesis investigates the possible strategies for simulating a Quantum Computer on a
+parallel Linux cluster.
+                                   ii
+
+
+Contents
+
+Abstract                            i
+
+
+Table of Contents                  ii
+
+
+List of Figures                    iii
+
+
+1 Introduction                      1
+
+
+2 History of Quantum Computation    2
+
+
+3   Models of Computation           4
+
+4 Physical Background               5
+
+
+5 Mathematical Basics               7
+
+
+6 Quantum Computation              10
+
+
+7 Simulation                       13
+
+
+8 Parallel Simulation              14
+
+
+9 Library Documentation            16
+
+
+10 Conclusion                      21
+
+References                         22
+                                                                                            iii
+
+
+List of Figures
+
+  1   Dr. Isaac Chuang, research staff member at IBM’s Almaden Research Center (San
+      Jose, Calif.), holds a quantum computer – a glass tube containing specially de-
+
+      signed molecules that can solve some of the most difficult mathematical problems
+      exponentially faster than a conventional computer.   . . . . . . . . . . . . . . . . . 12
+                                                                                                         1
+
+
+1 Introduction
+
+Since the first computers, the trend has been to miniaturize these machines in order to increase their
+efficiency and convenience. But, clearly nature has limits to this miniaturization process. It was
+
+Benioff [1] who proposed that the ultimate limit of miniaturization would be a quantum mechanical
+system. However, soon after Deutsch [3] showed that the only benefits of a quantum computer was
+not it’s size and energy savings, a totally new way of computation was possible which made use of
+the entangled quantum particles and quantum parallelization. Following this, Shor [7] discovered
+
+a polynomial time prime factorization algorithm for a quantum computer which garnered a great
+interest into quantum computation. Together with Grover’s algorithm for the fast searching of an
+unsorted database [6], Shor’s algorithm provided the motivation for the scientists to research the
+possibilities of realization of a quantum computing device.
+
+       Despite the rapid progress on the theory of quantum computation, the experiments for phys-
+ical implementation of a quantum computer faced major challenges. Although very basic quan-
+tum computing devices have been accomplished using different techniques, realization of a useful
+quantum computer in the near future seems impossible.
+       Because of this reason quantum computer simulation by classical computers became a popular
+
+topic. Many libraries ∗ and standalone applications have been developed for this purpose, some
+of them free, † ‡ some of them proprietary § ,and some languages have been developed ¶ k . Be-
+cause computation complexity increases exponentially with the number of qubits simulated, these
+attempts suffer great performance problems. To overcome these problems, this thesis discusses a
+
+method for quantum computer simulation on a distributed system. A similar approach has been
+tried by B. Oemer and Glendinning [5].
+   ∗
+     Lib Quantum (http://www.enyo.de/libquantum/ )
+   †
+     Jaquzzi (http://www.eng.buffalo.edu/ phygons/jaQuzzi/jaQuzzi.html)
+   ‡
+     Qudit (http://www.compsoc.nuigalway.ie/ damo642/QuantumSimulator/QuantumSimulator/QuantumQuditSimulator.htm)
+   §
+     Senko’s simulator (http://www.senko-corp.co.jp/qcs/qcp/qcpe.html)
+   ¶
+     QCL (http://tph.tuwien.ac.at/ oemer/qcl.html)
+   k
+     Q language (http://sra.itc.it/people/serafini/qlang/ )
+                                                                                                 2
+
+
+2 History of Quantum Computation
+
+In 1982, acting independently, Richard Feynman and Paul Benioff has claimed that quantum com-
+puting could be possible. Simulating quantum systems on classical computers requires an ex-
+
+ponentially large amount of time. Feynman’s first motivation was these kind of operations, he
+proposed that a quantum system could simulate other quantum systems more efficiently [4]. Be-
+nioff’s motivation was rather continuing the the trend of miniaturization in computer industry [1].
+As circuits continue to shrink they will eventually reach atomic level, and quantum mechanical
+
+effects would become a major limiting factor. So the only feasible solution was to construct a
+computer which would make use of quantum mechanical effects.
+   In 1985 David Deutsch published a paper [3] which proposed a quantum Turing machine,
+which made use of a before unnoticed property of quantum computers. Though severely underrated
+
+at its time, Deutsch’s paper would later be considered a landmark in quantum computation theory.
+In his paper, Deutsch showed that it is possible to perform some tasks on quantum computers
+much more efficiently than classical computers. Deutsch’s idea was to make use of a phenomenon
+which is known as quantum superposition. An isolated electron, if placed in a superposition, can
+travel along many different paths through a circuit. If the memory could be placed in a quantum
+
+superposition before applying the algorithm, it could be in multiple states simultaneously. So just
+one run-through the algorithm would calculate all computational paths simultaneously. This idea
+(Which was to be called quantum parallelism) would be the foundation of all quantum algorithms.
+   The examples in Deutsch’s paper were of limited use and due to their probabilistic nature,
+
+should be run several times to ensure the correct outcome. But these early hints in the field of
+quantum computation theory stirred the imaginations of many scientists, and about 10 years later
+Peter Shor of AT&T labs came up with a factorization algorithm for quantum computers.
+   In 1994 Peter Shor of AT&T developed a quantum computer algorithm for factorization [7]
+
+that is exponentially faster than any known classical algorithm. This discovery triggered a massive
+                                                                                                  3
+
+
+interest in quantum computation, because factorization is very hard to do classically, and all best
+known classical algorithms are super-polynomial. Factorization is known to be in the NP (Non-
+Deterministic Polynomial) complexity class, but it was believed that it was not in the P (Deter-
+
+ministic Polynomial) class and therefore thought to be intractably difficult on classical computers.
+These difficulties have been the basis of many modern crypto systems - including the widely used
+RSA (the Rivest-Shamir-Adleman protocol), which usually rely on the difficulty of factoring a very
+large number, which is the product of two prime numbers (secret keys). With Shor’s algorithm, it
+
+has been shown that it is possible to factorize very large numbers with quantum computers, which
+would shake the security of known key exchange methods.
+   Only two years later Lov Grover of bell labs invented a quantum algorithm for fast searching
+of a database [6]. Although Grover’s algorithm gives only a quadratic speed up over the best
+possible classical algorithm, the fact that searching forms the basis of many other algorithms, and
+
+the possibility to plugged in Grover’s algorithm to existing algorithms to immediately increase
+their efficiency, increased the importance of Grover’s discovery.
+   These algorithms show the capabilities of a quantum computer, and the main motivation behind
+the research into quantum computation. It is logical to expect even more powerful algorithms to be
+
+discovered in the near future. However, an implementation of a quantum computer which would
+be capable of convenient applications seems far away. Currently, quantum computers can operate
+only on a few qubits, and under extreme environmental conditions.
+                                                                                                  4
+
+
+3     Models of Computation
+
+Classical computers can be modeled by a Turing machine. A Turing Machine is an abstract model
+of computation comprised of an infinitely long sequential tape, a read/write head, a set of symbols,
+
+and a set of rules for reading / writing and moving the head based on the symbol under it. These
+rules are called functions, and the symbol under the head is called the state. The machine moves
+from one state to another by executing a matching transition function. If no transition function
+matches, the machine halts.
+
+    The Church-Turing Thesis [8] says the following: A Turing machine can compute any function
+computable by a reasonable physical device. Programming languages can be translated into Turing
+machines and vice versa. Thus, the computation of any reasonable function can be expressed by a
+programming language.
+
+    The modern Church thesis [2] says that a probabilistic Turing machine can simulate any physi-
+cal device in polynomial cost. A probabilistic Turing Machine can select among a set of transition
+functions with varying probability, instead of just one. In the following example, real numbers
+preceding a state indicate the probability of transitioning to that state.
+
+
+                               |0i → 0.5 |1i + 0.5 |2i
+                               |1i → 0.2 |0i + 0.8 |1i
+
+                               |2i → 0.4 |0i + 0.3 |2i + 0.3 |3i
+                               |3i → 0.3 |0i + 0.7 |2i
+
+    Such machines can produce solutions with a negligible probability of error, which would be non
+
+computable if no error was tolerated. Probabilistic computation with negligible error is important
+for quantum computation.
+                                                                                                     5
+
+
+4 Physical Background
+
+Quantum mechanics is a branch of physics which models behavior of energy and matter at the
+atomic and subatomic level. Its name comes from quanta ∗∗ .
+
+       Quantum mechanics asserts the following theories:
+       (1) energy and matter exist in discrete particles,
+       (2) energy and matter may behave as either particles or waves.,
+       (3) movement of these particles is unpredictable, and
+
+       (4) simultaneous measurement of two complementary values of a particle cannot be achieved.
+       Examples of such properties are energy, position, momentum, and angular momentum.
+       Last theory is called Heisenberg’s uncertainty principle. The principle states that before mea-
+surement of a quantum particle’s state, it exists in all states simultaneously. This property is called
+
+superposition.
+       Another important property is called entanglement or coherence. Pairs of particles which inter-
+act become entangled, a process called correlation. These particles exist in complementary states,
+so if one entangled particle has an ”up” spin, its partner has a ”down” spin. Together, entanglement
+and superposition enable quantum computation.
+
+       Superposition tells us that we cannot know a particle’s state until it is measured. Before mea-
+surement, we can express a particle’s state as a probability amplitude (defined in the next section).
+       The process of losing coherence is called decoherence, and can occur as a result of even a sin-
+gle stray photon. Decoherence is thought to explain why much of our world behaves according to
+
+classical, and not quantum, physics. Remaining coherent requires complete isolation of a pair from
+the environment, and presents one of the greatest challenges to scientists. This is why quantum
+computation must be reversible at every stage: thermodynamics shows that a non-reversible com-
+putation must give off heat as a byproduct, which causes interaction with the environment, which
+  ∗∗
+       the discrete packets of energy proposed by Max Planck in 1900
+                                                                                                6
+
+
+leads to decoherence. Extensive error correcting codes are used to get around the decoherence
+problem in practice, but with extreme time and space overhead.
+   In order to explain quantum algorithms, and how they achieve the efficiency gains they are
+
+capable of, it is first necessary to understand how quantum computers work internally. The concern
+here is not with how quantum computers can be implemented physically, though this is an active
+area of research in physics. What is necessary is an understanding of how qubits work, and how
+they interact.
+                                                                                                         7
+
+
+5 Mathematical Basics
+
+Qubits are conventionally represented as Ket vectors in the Dirac (Bra-Ket) notation, which is
+common in quantum physics texts. The notation defines the Ket column vector, and its row vector
+                                                                    
+                                                              x 
+                                                                1 
+transpose the Bra. The Ket vector ~x is denoted by |φi =         , and Bra vector ~y is denoted hψ| =
+                                                                x 
+                                                                  2
+        
+  y1 y2 . In quantum computation, the expression |0i represents quantum zero, and |1i represents
+quantum one. The state of a qubit can then be represented by the expression α |0i+β |1i, where α
+and β are the amplitudes of zero and one, respectively. The probability of seeing |0i in this state
+is |α|2 , and |1i is |β|2 . As long as our system is coherent, the sum of these probabilities must be
+1. So, in this example, |α|2 + |β|2 = 1. Similarly, an n-qubit register will have 2n amplitudes, each
+
+determining the probability that the binary number corresponding to it during measurement, and
+the sum of their squares will be 1.
+    There is also an alternative, matrix notation for the quantum computation. The group of ampli-
+tudes that describe the state of a quantum register is always a unit vector. According to convention,
+
+a qubit with state |0i, which is guaranteed to read 0 when measured, is represented by the vector
+                                                   
+                                                   1 
+                                                     
+                                                       ,
+                                                         0 
+
+a qubit with state |1i is represented by the vector
+                                                   
+                                                   0 
+                                                     
+                                                       
+                                                         1 
+
+(these are called the basis states). So the amplitude of seeing |0i is given in the first row, and seeing
+|1i is given in the second row. An arbitrary qubit state is then represented by the vector
+                                                   
+                                                   α 
+                                                     
+                                                       ,
+                                                         β 
+                                                                                                                                                                     8
+
+
+where α and β are complex numbers and
+
+
+                                                                           |α|2 + |β|2 = 1.
+
+
+The state of a register consisting of n qubits is represented by the tensor product of the individual
+states of the qubits in it.
+                                                                                                                 N
+                 For two matrices A and B, where A is n by m, A                                                   B equals :
+                                                                
+                                                          
+        11      a   ... a 1m            11  a B ... a 1m B   
+                               
+                                  N                              
+            ... ... ...  = ... ... ... 
+                                                              
+                                                                
+                  a   ... a                      a B ... a B 
+         n1            nm               n1                      nm
+
+     So, the tensor product of two vectors ~a and ~b equals :
+                                                                                                                                              
+                                                                                                                                            
+                                                                                                1 1                              a  b
+                                                                                                                                            
+                                                                                                    ... 
+                                                                                                                                            
+                                                                                                                                              
+                                                                                                          a b 
+                                                                                                            1 m 
+                                                                                                                                              
+                                                                                                                a b 
+                                                                                                                                           2 1 
+                                                                                                                                        
+                                                                                                                                                   
+                                                                             
+                                                      a1   b1   ... 
+                                                                    N                                                                        
+                                                          ...   ... = a b 
+                                                                                2 m 
+                                                                                                                                         
+                                                                a   b   ... 
+                                                                  n              m                                                               
+                                                                                                                                                   
+                                                                                                                      ... 
+                                                                                                                                                   
+                                                                                                                                                     
+                                                                                                                            an b1 
+                                                                                                                                                     
+                                                                                                                                                       
+                                                                                                                                  ... 
+                                                                                                                                                       
+                                                                                                                                                         
+                                                                                                                                         an bm 
+                                                                              
+                                                      a             b 
+                                                        1               1 
+So a register with two qubits where the bits are         and        , respectively can be represented
+                                                        a                 b 
+                                                                                                                 2                                               2
+as
+                                                                                                       9
+
+                            
+                          
+      a1 b1 
+                          
+          a b 
+            2 1 
+                           where, of course
+                a b 
+                  1 2 
+                          
+                      a b 
+        2 2
+
+
+                                                  |a1 b1 |2 + |a1 b2 |2 + |a2 b1 |2 + |a2 b2 |2 = 1.
+
+
+A quantum program which transforms a register of n qubits from an input state to an output state
+
+can be represented as 2n by 2n matrix, which, when multiplied by the input state vector, gives the
+output state vector. Because Quantum Computation should be information lossless (ie reversible),
+this matrix should be a unitary matrix. The combined effect of several single-qubit programs which
+run parallelly on the qubits in a register can be represented as the tensor product of their individual
+matrices.
+                                                                                                                      10
+
+
+6 Quantum Computation
+
+We are concerned with using quantum computation to produce solutions to problems which are
+considered intractable for classical computers. †† To see how quantum computers can compute
+
+classically intractable problems, we need to examine how they perform computation.
+       The building block of the quantum computer is the qubit, or quantum bit. A qubit is an abstract
+value, represented by nano scale properties of physical matter. Qubits have been implemented
+using ion charge, photon polarization, nuclear spin of atoms, and nuclear spin of impurities in
+
+silicon chips.
+       Classical bits abstractly represent values of 0 or 1 by the absence or presence of voltage. In
+contrast , a qubit represents both a 0 and 1 simultaneously due to superposition.
+       Since qubits represent two values at once, n qubits represent 2n values. Thus, quantum com-
+
+puters operate on exponential data with only linear input. For example: two qubits represent the
+values 00 01 10 and 11 simultaneously. The probability of the value which will be observed is
+represented by a complex number called probability amplitude.
+       Probability amplitudes are mathematically analogous to a wave: they can be positive or nega-
+tive, and are subject to interference. The probability amplitude of a value is the sum of probability
+
+amplitudes over all entangled particles. The classical probability of a value is given by the square
+of its probability amplitude. Quantum computation is performed by manipulating probability am-
+plitudes of qubits.
+       A qubit can be represented by unit vector in the Hilbert space C 2 , where C is the set of complex
+
+numbers. An n-qubit system can be described by the tensor product of these Hilbert spaces:
+       We can compute a function f on these qubits by applying a unitary operator U:
+       when f is one-to-one, ie reversible, we can always find a unitary operator. Any classical func-
+tion we wish to compute can be made reversible using extra bits and acceptable operational over-
+  ††
+       An intractable problem is one for which execution time grows exponentially as input size increases linearly.
+                                                                                                11
+
+
+head. We can think of U as a basic quantum gate, performing the role of a classical truth table. We
+can represent U as a unitary matrix, which by definition is reversible.
+   To apply U and thereby compute our function f, we find the Hamiltonian H which solves the
+
+equation :
+   Absolution exists as long as U is unitary. By applying U to a vector on n qubits we apply
+f to all possible 2n inputs in parallel. This parallelism is how quantum computation overcomes
+classically intractable problems.
+
+   Obtaining the computed solution presents a new challenge. The superposition of n qubits have
+2n possible states, and is called a wave function. By observing the value of a vector of qubits we
+collapse this wave function, selecting one state from exponentially many to produce a classical
+bit vector. This collapsing effectively destroys the solution. However, we can use the interference
+property of probability of observing the correct answer.
+
+   Quantum computing is not without drawbacks. Firstly, the exponential parallelism inherent
+in quantum computation does not imply exponential computational power. In addition, practical
+implementation is hindered by decoherence, caused by interference from the environment as well
+as the exponential decay times of quantum states. Quantum error correcting codes are necessary
+
+to mitigate decoherence and error propagation in the real world. These codes require many phys-
+ical qubits to accurately encode a single logical qubit of information. Finally, certain quantum
+architectures have impractical requirements, such as operating at near absolute zero temperature.
+Current quantum computers require classical control components, and CMOS transistors cannot
+
+be used in such an environment.
+   Due to these difficulties, simulation is important for the development and advancement of quan-
+tum algorithms. Quantum simulators run on classical computers and allow state observation, anal-
+ysis of error accumulation, and feasibility studies. However, simulating a 2 n dimensional Hilbert
+space on a classical system requires manipulating bit vectors of size 2 n , whereas quantum com-
+                                                                                              12
+
+
+
+
+Figure 1: Dr. Isaac Chuang, research staff member at IBM’s Almaden Research Center (San Jose,
+Calif.), holds a quantum computer – a glass tube containing specially designed molecules that can
+solve some of the most difficult mathematical problems exponentially faster than a conventional
+computer.
+
+puters need only n qubits. As a result, quantum simulators are restricted to small numbers of
+qubits.
+
+   Real quantum computers do exist which operate on 5-7 qubits. Shor’s algorithm was success-
+fully demonstrated on a 7-qubit machine.
+                                                                                                    13
+
+
+7 Simulation
+
+This project aims to produce quantum computer simulator that will run on classical computers.
+Unfortunately, the simulator will be inefficient as it is simulating quantum states on a classical sys-
+
+tem. Although a quantum computer works on different physical paradigm to a classical computer,
+quantum computers cannot do anything that classical computers cannot. Classical computers can
+simulate quantum computers to arbitrary precision by storing vector representations of the quan-
+tum states and perform any required rotation upon them. The reason for using quantum computers
+
+is merely the increase in efficiency possible over classical computational devices. However, using
+a classical system to simulate a quantum computer will nullify any efficiency gains due to the extra
+processing required. It would in fact be much less efficient, as in order to simulate a quantum com-
+puter a great deal of information that is implicit in quantum states must be explicitly programmed
+
+and manipulated in the classical system. In order to simulate even a small quantum algorithm,
+consisting of 100 qubits, would require 2100 (approximately 1030 ) complex numbers to represent
+the quantum state. No existing digital computer, can handle numbers of this magnitude, and that
+performing any kind of rotation of a vector in a space with a dimension of 10 30 is far beyond the
+computational capacity of any foreseeable classical computer.
+
+   So though a quantum computer can be simulated by a classical computer, the simulation be-
+comes increasingly inefficient as the number of qubits in the simulation increases. Computationally
+quantum mechanics is very difficult, as the size of the matrices required to store the state of the
+system grows exponentially with the number of qubits.
+                                                                                                   14
+
+
+8 Parallel Simulation
+
+In this thesis, the LAM message passing interface (MPI) has been used distribute the computation
+(maintained by Indiana university)‡‡. The program is SIMD (Single Instruction Multiple Data),
+
+with each node running a copy of the same code, but operating on different datas. The heaviest
+computational burden in the simulation of a quantum computer is the matrix multiplication when a
+register is applied a quantum program. The resulting rows of the output vector contain n multipli-
+cations, and n-1 additions for a quantum register with n qubits. Although all nodes will be running
+
+the same code, one of them will perform special tasks, it will be used to distribute the data (input
+vector and quantum program) and get the results (output vector). This node will be called the
+master node. A strategy is to keep the probability amplitudes of each qubit on different processors,
+and apply the quantum gates to individual qubits. However this approach doesn’t let us obtain the
+
+output vector after the execution of the quantum program, so it is required to collect the qubit’s
+values in a single processor and perform a tensor product to get the output vector, which implies
+serious communication and computation overheads. Another strategy is to assign each row of the
+input vector to individual nodes, and perform the computation of the corresponding row of the
+outcome vector on this node. Since only one row of the Quantum program is needed to calculate
+
+the output vector’s row, the quantum program can be efficiently distributed. However, with this
+method, the nodes have to communicate the members of the input vector with each other, which
+increases the communication overhead, and code complexity. Since all the nodes must have all
+the members of the input vector to calculate the corresponding row of the output vector, it is quite
+
+logical to distribute a copy of the input vector to all processors before execution. The program
+supplied with this thesis uses this strategy, it broadcasts the input vector to all nodes, to minimize
+the communication overhead. Then the quantum program is divided into chunks of appropriate
+sizes and distributed to corresponding nodes. With this strategy, it is possible to efficiently dis-
+  ‡‡
+       http://www.lam-mpi.org/
+                                                                                                   15
+
+
+tribute the bulk of the computation among the worker nodes. After the computation is finished, the
+nodes begin broadcasting their results. Actually, if each node sent it’s result to the master node, it
+would be possible to get the output vector on the master node. However, if the quantum programs
+
+are applied sequentially, this approach needs to send the output vector to the worker nodes as the
+input vector of the next quantum program, thus increasing the communication overhead. So it is
+wise to keep a copy of the output vector on all nodes to minimize the communication overhead.
+Depending on the network architecture, it may be more efficient to use a hypercube template to
+
+gather all the data on all the nodes (if nodes are connected with a hypercube topology). However,
+with a classical star topology, plain broadcasts of the results will be more efficient.
+                                                                                                 16
+
+
+9 Library Documentation
+
+Structure of a Matrix :
+   A matrix struct contains column and row sizes and a pointer to an array of arrays of complex
+
+data structs. The GCC extension for complex numbers have been used for this project. The matrix
+struct also holds the row and column sizes of the matrix.
+
+typedef struct {
+int row_size;
+int column_size;
+__complex__ double ** value;
+
+} matrix;
+
+   How to create a matrix :
+
+   with the create matrix function. column size and row size are passed as arguments. ex :
+
+matrix * m = create_matrix (2,2);
+
+How to initialize a matrix :
+
+   A freshly created matrix’s elements are not initialized. the init matrix function zeroes all ele-
+ments of a matrix. ex :
+
+init_matrix(m);
+
+or you can set the elements to a fixed value with the
+
+init_matrix_c
+
+(init matrix to complex value) function.
+
+__complex__ double a = 4 + 3i;
+init_matrix_c(m,a);
+                                                                                                 17
+
+
+init_matrix_n
+
+function sets the real parts of the elements to the given value.
+
+init_matrix_n(m,3.17);
+
+or you can set the matrix to a predefined matrix, currently, hadamard gate (for a 2 by 2 matrix) and
+
+CNOT gate (for a 4 by 4 matrix) are available
+
+init_hadamard(m);
+init_CNOT(m);
+
+how to set matrix values by hand :
+     you can reach the elements in a matrix with the ’value’ pointer in the matrix. You have to
+provide row and column numbers.
+
+matrix * m2 = create_matrix(4,1);
+m2->value[0][0]=1;
+m2->value[1][0]=2;
+
+m2->value[2][0]=3;
+m2->value[3][0]=4;
+
+thismatrix                is a vector containing :
+     
+       1 
+         
+           2 
+             
+               
+                 3 
+                   
+                     
+                       4 
+    how to print a matrix :
+     simply, with the
+
+print_matrix
+                                                                                                 18
+
+
+function.
+
+
+print_matrix (m2);
+
+
+How to create a quantum register :
+   a quantum register with n qubits is a vector with 2n dimensions. When creating a quantum
+
+register with
+
+create_qubit
+
+function, you provide the size of the register with the first parameter, and then provide the value
+(an integer value) which the register will hold as its initial value. ex :
+
+
+m = create_qubit (2,3);
+
+
+will create a 1x4 matrix with 0 0 0 1
+   as it’s initial value. 3 is represented as 11 in binary, so both qubits should keep 1.
+
+
+m = create_qubit (2,0);
+
+
+will create 1 0 0 0
+
+   providing a larger value than the register can hold will result in an error.
+   Deconstructor
+    matrix() function will destroy a matrix, freeing all the memory allocated.
+   Matrix Operations
+   tensor product : returns a pointer to a matrix which is the tensor product of two given matrices.
+
+The original matrices are kept untouched. Ex:
+
+
+matrix * m3 ;
+m3 = tensor_product(m1,m2);
+                                                                                                   19
+
+
+Matrix multiplication : returns a pointer to a matrix which is the multiplication of two given
+matrices. The original matrices are kept untouched. Ex:
+
+matrix * m3 ;
+m3 = dot_product(m1,m2);
+
+Matrix Transmission functions : There are three functions for easy transmission of matrices within
+the lam-mpi environment. Sending a matrix :
+
+send_matrix
+
+sends a matrix to a specified node. Ex:
+
+send_matrix(m2,2);
+
+Receiving a matrix :
+
+get_matrix
+
+gets a matrix from the specified node. Ex:
+
+matrix * m = get_matrix(0);
+
+Broadcasting a matrix : broadcasts a matrix. The first argument is a pointer to the matrix to be sent
+(this can be (should be) a null pointer for the nodes who will receive the matrix, and a pointer to an
+actual matrix for the node who will send the matrix) the second argument is the rank of the node,
+and the last argument is the rank of the node who will make the broadcast. Ex:
+
+matrix * m2;
+
+if(rank == 0)
+{
+m2 = create_matrix (4,4);
+                                              20
+
+
+__complex__ double a = 4 + 3i;
+init_matrix_c(m2,a);
+}
+
+m2 = broadcast_matrix(m2,rank,0);
+printf("rank %d received matrix :\n",rank);
+print_matrix(m2);
+                                                                                                21
+
+
+10 Conclusion
+
+As long as Quantum computers with a sufficient memory to apply some useful functions for some
+basic tasks are still under development, Quantum Simulators will provide the possibility for scien-
+
+tists to research new algorithms. The difficulties encountered in simulating Quantum Computers
+with Classical Computers make us develop new methods. Parallel Computation is one of the most
+promising ways to simulate a Quantum Computer and recently many researchers are interested in
+this subject.
+
+   In this thesis, the basics of Quantum Computation and some strategies for a parallel simulation
+have been discussed, and one of them has been implemented. Due to time limitations, the library
+could not be developed fully, many functions to provide basic Quantum Computer operations (ie
+Quantum Fourrier Transform) was unfinished. A complete library could prove quite useful for
+
+research into Quantum Computation algorithms.
+                                                                                              22
+
+
+References
+
+[1] Paul Benioff. The computer as a physical system : A microscopic quantum mechanical hamil-
+    tonian model of computers as represented by turing machines. J. Statist. Phys., 22:563–591,
+
+    1980.
+
+[2] J. Church, 1936.
+
+[3] David Deutsch. Quantum theory, the church-turing principle and the universal quantum com-
+    puter. Proceedings of the Royal Society of London, A400:97–117, 1985.
+
+[4] Richard P. Feynman. Simulating physics with computers. International Journal of Theoretical
+    Physics, 21, 1982.
+
+[5] Ian Glendinning and Bernhard Oemer. Parallelization of the general single qubit gate and cnot
+    for the qc-lib quantum computer simulator library, 2003.
+
+[6] Lov K. Grover. A fast quantum mechanical algorithm for database search. Proc. 28th Annual
+    ACM Symposium on Theory of Computing, ACM, New York, 1996.
+
+[7] Peter W. Shor. Polynomial-time algorithms for primefactorization and discrete logarithms on
+    a quantum computer. Proceedings of the 35th Annual Symposium on Foundations of Computer
+
+    Science, Santa Fee, IEEE Computer Society Press, pages 124–134, 1994.
+
+[8] A. M. Turing, 1936.
+
+
+================================================================================
+  implementation/original/  --  2004 C / LAM-MPI source, preserved verbatim
+================================================================================
+
+
+================================================================================
+FILE: implementation/original/qubit.c
+================================================================================
+#include <stdio.h>
+#include <stdlib.h>
+#include "mpi.h"          /* MPI constants and functions */
+#include "standart.h"
+
+#include <math.h>
+	#ifndef MATRIX_H
+	#define MATRIX_H
+#include "matrix.h"
+#endif
+
+#ifndef PARALLEL_H
+	#define PARALLEL_H
+	#include "parallel.h"
+#endif
+
+
+
+#define NUM_SLAVES    4
+
+int main(int argc, char** argv)
+{
+int size, rank;
+
+MPI_Status status;
+
+/* initlalize the MPI System     */
+MPI_Init(&argc, &argv);
+
+/* check for proper number of processes     */
+MPI_Comm_size(MPI_COMM_WORLD, &size);
+MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+matrix * input_vector;
+matrix * quantum_program;
+
+if (rank == 0)
+{
+
+	int qureg_size = 3;
+	/* initialise the input vector*/
+
+	input_vector = create_qubit(qureg_size,2);
+
+	/* initialise the quantum program */
+
+	quantum_program = create_matrix(2,2);
+	init_hadamard(quantum_program);
+
+	/* set the quantum program to an appropriate size */
+
+	if (quantum_program->column_size < input_vector->row_size)
+	{
+		matrix * original_quantum_program = quantum_program;
+		while (quantum_program->column_size < input_vector->row_size)
+		{
+			
+			quantum_program = tensor_product(original_quantum_program,quantum_program);
+		}
+	}
+	else if (quantum_program->column_size > input_vector->row_size)
+	{
+		error("Vector too small.");
+		exit(0);
+	}
+	//print_matrix(quantum_program);
+	//print_matrix(input_vector);
+}
+/* distribute the input vector */
+
+
+input_vector = broadcast_matrix(input_vector,rank,0);
+
+printf("input broadcast %d\n",rank);
+//print_matrix(input_vector);
+
+
+/* distribute the quantum program to slave processes */
+int row_distributed ;
+int size_2P;
+if(rank == 0)
+{
+	size_2P = get_biggest_2s_power(size); /* in case the lam-mpi environment does not have a size that is a power of 2, we set a new size, and disregard the remaining nodes. */
+	row_distributed = quantum_program->row_size / size_2P; /* number of rows distributed to each process */
+	printf("row_dist %d\n",row_distributed);
+}
+
+MPI_Bcast (&row_distributed, 1, MPI_INT, 0, MPI_COMM_WORLD);
+//printf("my rank : %d dist : %d\n",rank, row_distributed);
+
+if(rank == 0) {
+	int left_over = quantum_program->row_size % size_2P;
+	int node_rank;
+	int i = 0;
+	for(node_rank = 1; node_rank < size_2P; node_rank++)
+		for(i = node_rank*row_distributed; i < (node_rank+1)*row_distributed; i++)
+			send_row(quantum_program, i, node_rank);
+
+}
+
+//MPI_Barrier(MPI_COMM_WORLD);
+
+if(rank != 0)
+{
+
+int i;
+matrix * program [row_distributed];
+matrix * results [row_distributed];
+for(i = 0; i < row_distributed; i++)
+	program[i] = get_matrix(0);
+
+for(i = 0; i < row_distributed; i++)
+	results[i] = dot_product(program[i],input_vector);
+
+printf("my rank : %d my result : \n",rank);
+for(i = 0; i < row_distributed; i++)
+	print_matrix(results[i]);
+
+}
+
+/* clean up and exit the MPI system         */
+MPI_Finalize();
+
+exit(EXIT_SUCCESS);
+} /* and main() */    
+
+
+================================================================================
+FILE: implementation/original/matrix.h
+================================================================================
+typedef struct {
+	int row_size;
+	int column_size;
+	__complex__ double ** value;
+} matrix;
+
+matrix * create_matrix (int row_size, int column_size);
+void init_matrix (matrix * m);
+void print_matrix (matrix * m);
+void init_CNOT (matrix * m);
+void init_hadamard (matrix * m);
+matrix * tensor_product (matrix * a, matrix * b);
+matrix * dot_product (matrix * a, matrix * b);
+matrix * create_qubit (int, int);
+
+
+================================================================================
+FILE: implementation/original/matrix.c
+================================================================================
+#include "matrix.h"
+#include "standart.h"
+#include <math.h>
+
+matrix * create_matrix (int row_size, int column_size)
+{
+	matrix * m = (matrix *) malloc(sizeof(matrix));
+	m->row_size = row_size;
+	m->column_size = column_size;
+	m->value = (__complex__ **) malloc (sizeof(__complex__ *)*row_size);
+	int i;
+	for(i=0; i<row_size; i++)
+		m->value[i] = (__complex__ *)malloc(sizeof(__complex__)*column_size);
+	return m;
+}
+
+matrix * create_qubit (int size, int value)
+{
+	if(value > power (2,size)) {
+		error("error in create_qubit : impossible representation of in bits");
+		return 0;
+	}
+	if (size <= 0) {
+		error("error in create_qubit : first argument <= 0");
+		return 0;
+	}
+	if (size == 1) {
+	//printf("got values size %d  value %d\n",size, value);
+	int left_over = value % 2;
+	if (value >= 2) {
+		error("error in create_qubit : value argument >= 2");
+		return 0;
+	}
+	matrix * m = (matrix *) malloc(sizeof(matrix));
+	m->row_size = 2;
+	m->column_size = 1;
+	m->value = (__complex__ **) malloc (sizeof(__complex__ *)*2);
+	int i;
+	for(i=0; i<2; i++) {
+		m->value[i] = (__complex__ *)malloc(sizeof(__complex__));
+		m->value[i][0] = (!left_over ^ i);
+	}
+	
+	return m;
+	
+	}
+	matrix * m1 = create_qubit(size-1,(value-(value >> size-1)*power(2,size-1)));
+	matrix * m2 = create_qubit(1,(value >> size-1));
+	matrix * m = tensor_product(m2, m1);
+	
+	//printf("matrix :\n");
+	//print_matrix(m);
+	//printf("\n");
+	return m;
+}
+
+void init_matrix (matrix * m)
+{
+	int i, j;
+	for(i=0; i < m->row_size; i++)
+		for(j=0; j < m->column_size; j++)
+			m->value[i][j] = 0;
+}
+
+void init_matrix_n (matrix * m, double n)
+{
+	int i, j;
+	for(i=0; i < m->row_size; i++)
+		for(j=0; j < m->column_size; j++)
+			m->value[i][j] = n;
+}
+
+void init_matrix_c (matrix * m, __complex__ c)
+{
+	int i, j;
+	for(i=0; i < m->row_size; i++)
+		for(j=0; j < m->column_size; j++)
+			m->value[i][j] = c;
+}
+
+void print_matrix (matrix * m)
+{
+	int i, j;
+	for(i=0; i < m->row_size; i++) {
+		for(j=0; j < m->column_size; j++)
+			printf("(%.3f + %.3f i) ",__real__ m->value[i][j], __imag__ m->value[i][j]);
+		printf("\n");
+	}
+}
+
+void init_CNOT (matrix * m)
+{
+	if(m->column_size != 4 && m->row_size != 4)
+		error("error in CNOT : Matrix size not good.");
+	init_matrix(m);
+	int i;
+	for(i=0; i < m->row_size-2; i++)
+			m->value[i][i] = 1;
+	m->value[m->row_size-2][m->row_size-1] = 1;
+	m->value[m->row_size-1][m->row_size-2] = 1;
+}
+
+void init_hadamard (matrix * m)
+{
+	if(m->row_size != 2 && m->column_size != 2)
+		error("init hadamard - Wrong matrix size");
+	init_matrix(m);
+	int i;
+	m->value[0][0] = 1 / sqrt(2);
+	m->value[0][1] = 1 / sqrt(2);
+	m->value[1][0] = 1 / sqrt(2);
+	m->value[1][1] = -1 / sqrt(2);
+}
+
+matrix * tensor_product (matrix * a, matrix * b)
+{
+	int result_row_size = a->row_size*b->row_size;
+	int result_col_size = a->column_size*b->column_size;
+	matrix * result = create_matrix(result_row_size,result_col_size);
+
+	init_matrix (result);
+	int a_row,a_col,b_row,b_col;
+	for(a_col=0; a_col < a->column_size; a_col++)
+		for(a_row=0; a_row < a->row_size; a_row++)
+			for(b_col=0; b_col < b->column_size; b_col++)
+				for(b_row=0; b_row < b->row_size; b_row++) {
+					//printf("assigning %e to %d  %d\n",(a->value[a_row][a_col]*b->value[b_row][b_col]),((b->row_size*a_row)+b_row),((b->column_size*a_col)+b_col));
+					result->value[(b->row_size*a_row)+b_row][(b->column_size*a_col)+b_col] = Complex_Multiplication(a->value[a_row][a_col],b->value[b_row][b_col]);
+				}
+	
+	return result;
+}
+
+matrix * dot_product (matrix * a, matrix * b)
+{
+	if(a->column_size != b->row_size) {
+		print_matrix(a);
+		print_matrix(b);
+		error("dot product : Matrix mismatch.");
+	}
+	matrix * result = create_matrix(a->row_size,b->column_size);
+	init_matrix(result);
+	int row, col, i;
+	__complex__ sum =0;
+	for(row = 0; row < a->row_size; row++)
+		for(col = 0; col< b->column_size; col++) {
+			for(i=0; i < a->column_size; i++)
+				sum += Complex_Multiplication(a->value[row][i], b->value[i][col]);
+			result->value[row][col] = sum;
+			sum = 0;
+		}
+	return result;
+}
+
+
+================================================================================
+FILE: implementation/original/parallel.h
+================================================================================
+#define MSG_INIT	101   /* initialization values*/
+#define MSG_OP		102   /* operator identifier  */
+#define MSG_MATRIX_SIZE 201
+#define MSG_MATRIX_VALUES 202
+
+#ifndef MATRIX_H
+	#define MATRIX_H
+	#include "matrix.h"
+#endif
+
+matrix * broadcast_matrix (matrix *, int my_rank, int root_rank);
+matrix * get_matrix (int source);
+void send_matrix (matrix *, int destination);
+void send_row (matrix *, int sent_row, int destination);
+
+
+================================================================================
+FILE: implementation/original/parallel.c
+================================================================================
+#include "mpi.h"
+#include "standart.h"
+
+#ifndef PARALLEL_H
+	#define PARALLEL_H
+	#include "parallel.h"
+#endif
+
+#ifndef MATRIX_H
+	#define MATRIX_H
+	#include "matrix.h"
+#endif
+
+matrix * broadcast_matrix (matrix * m, int my_rank, int root_rank)
+{
+	int BroadCast_size [2];
+	int i;
+	
+	if(my_rank == root_rank) 
+	{
+		BroadCast_size [0] = m->row_size;
+		BroadCast_size [1] = m->column_size;
+	}
+	
+	MPI_Bcast(BroadCast_size, 2, MPI_INT, root_rank, MPI_COMM_WORLD);
+	
+	double BroadCast_real_values [BroadCast_size[0] * BroadCast_size[1]];
+	double BroadCast_imag_values [BroadCast_size[0] * BroadCast_size[1]];
+
+	if(my_rank == root_rank) 
+	{
+		for(i=0; i < m->row_size * m->column_size; i++) {
+			//printf("i : %d row s [%d] col s [%d] i/%d i %d",i, m->row_size,m->column_size,(i/m->column_size),(i%m->column_size));
+			//printf("  value = %f %f i\n", __real__ m->value[i/m->column_size][i%m->column_size], __imag__ m->value[i/m->column_size][i%m->column_size]);
+			BroadCast_real_values[i] = __real__ m->value[i/m->column_size][i%m->column_size];
+			BroadCast_imag_values[i] = __imag__ m->value[i/m->column_size][i%m->column_size];
+		}
+	}
+	
+	MPI_Bcast(BroadCast_real_values, BroadCast_size[0] * BroadCast_size[1], MPI_DOUBLE, root_rank, MPI_COMM_WORLD);
+	MPI_Bcast(BroadCast_imag_values, BroadCast_size[0] * BroadCast_size[1], MPI_DOUBLE, root_rank, MPI_COMM_WORLD);
+	
+	
+	m = create_matrix(BroadCast_size[0],BroadCast_size[1]);
+
+	for (i=0; i < BroadCast_size[0]*BroadCast_size[1]; i++) {
+		//printf("i : %d size 0 [%d] size 1 [%d] i/%d i %d",i,BroadCast_size[0],BroadCast_size[1],(i/BroadCast_size[1]),(i%BroadCast_size[0]));
+		//printf("  value = %f %f i\n",BroadCast_real_values[i], BroadCast_imag_values[i]);
+		__real__ m->value[i/BroadCast_size[1]][i%BroadCast_size[1]] = BroadCast_real_values[i];
+		__imag__ m->value[i/BroadCast_size[1]][i%BroadCast_size[1]] = BroadCast_imag_values[i];
+	}
+	
+	return m;
+}
+
+matrix * get_matrix (int source)
+{
+	MPI_Status status;
+	int result [2];
+	result[0] = 0;
+	result[1] = 0;
+
+	MPI_Recv(result, 2, MPI_INT, source, MSG_MATRIX_SIZE, MPI_COMM_WORLD, &status);
+	
+	//printf("received %d %d from %d.\n",result[0],result[1],source);
+	
+	double  real_values [result[1]];
+	double  imag_values [result[1]];
+	
+	MPI_Recv(real_values, result[1], MPI_DOUBLE, source, MSG_MATRIX_VALUES, MPI_COMM_WORLD, &status);
+	MPI_Recv(imag_values, result[1], MPI_DOUBLE, source, MSG_MATRIX_VALUES, MPI_COMM_WORLD, &status);
+	
+	matrix * m = create_matrix(result[1]/result[0],result[0]);
+	int i;
+	for (i=0; i < result[1]; i++) {
+		//printf("i : %d size 0 [%d] size 1 [%d] i/%d i %d",i,result[0],result[1],(i/result[0]),(i%result[0]));
+		//printf("  value = %f %f i\n",real_values[i], imag_values[i]);
+		__real__ m->value[i/result[0]][i%result[0]] = real_values[i];
+		__imag__ m->value[i/result[0]][i%result[0]] = imag_values[i];
+	}
+	
+	//printf("received matrix \n");
+	//print_matrix(m);
+	return m;
+
+}
+
+void send_matrix (matrix * m, int destination)
+{
+	MPI_Request * request;
+	
+	int size [2];
+	size [0] = m->column_size;
+	size [1] = m->column_size * m->row_size;
+	
+	//printf("sending %d %d matrix to %d\n",size [0],size [1],destination);
+	
+	MPI_Send(size, 2, MPI_INT, destination, MSG_MATRIX_SIZE, MPI_COMM_WORLD);
+
+	double real_values [m->row_size * m->column_size];
+	double imag_values [m->row_size * m->column_size];
+	
+	int i;
+	for(i=0; i < m->row_size * m->column_size; i++) {
+		//printf("i : %d size 0 [%d] size 1 [%d] i/%d i %d",i,size[0],size[1],(i/m->column_size),(i%m->column_size));
+		//printf("  value = %f %f i\n",m->value[i/m->column_size][i%m->column_size], m->value[i/m->column_size][i%m->column_size]);
+		real_values[i] = __real__ m->value[i/m->column_size][i%m->column_size];
+		imag_values[i] = __imag__ m->value[i/m->column_size][i%m->column_size];
+	}
+	MPI_Send(real_values, m->row_size * m->column_size, MPI_DOUBLE, destination, MSG_MATRIX_VALUES, MPI_COMM_WORLD);
+	MPI_Send(imag_values, m->row_size * m->column_size, MPI_DOUBLE, destination, MSG_MATRIX_VALUES, MPI_COMM_WORLD);
+	
+}
+
+void send_row (matrix * m, int sent_row, int destination)
+{
+	matrix * toBeSent = create_matrix(1,m->column_size);
+	int i;
+	//printf("root sending to %d:\n",destination);
+	for(i = 0; i<m->column_size; i++)
+		toBeSent->value[0][i]=m->value[sent_row][i];
+	//print_matrix(toBeSent);
+	send_matrix(toBeSent,destination);
+	
+	
+}
+
+
+================================================================================
+FILE: implementation/original/standart.h
+================================================================================
+int power_of_two (int size);
+void error(char * message);
+__complex__ Complex_Multiplication (__complex__, __complex__);
+
+
+================================================================================
+FILE: implementation/original/standart.c
+================================================================================
+
+
+void error(char * message)
+{
+	printf("%s\n",message);
+	exit(1);
+}
+
+int power (int base, int power)
+{
+	int i, result=1;
+	for (i=0; i<power; i++)
+		result *= base;
+	return result;
+}
+
+__complex__ Complex_Multiplication (__complex__ a, __complex__ b)
+{
+	__complex__ double result;
+	__real__ result = (__real__ a * __real__ b - __imag__ a * __imag__ b);
+	__imag__ result = (__real__ a * __imag__ b + __imag__ a * __real__ b);
+	return result ;
+}
+
+int power_of_two (int size)
+{
+	int i, counter = 0;
+	for (i = 0; i < sizeof(int) * 8; i++)
+		if ((size >> i) & 1)
+			counter++;
+		if (counter != 1)
+			return 0;
+		else
+			return 1;
+}
+
+int get_biggest_2s_power (int size)
+{
+	int i;
+	for (i=size; i>0; i--)
+		if (power_of_two(i))
+			return i;
+}
+
+
+================================================================================
+FILE: implementation/original/qubit.doc
+================================================================================
+Qubit Sim Documentation
+
+Available Functions
+
+Structure of a Matrix :
+
+A matrix struct contains column and row sizes and a pointer to an array of arrays of complex data structs
+
+How to create a matrix :
+
+with the create matrix function. column size and row size are passed as arguments.
+ex :
+matrix * m = create_matrix (2,2);
+
+How to initialise a matrix :
+
+A freshly created matrix's elements are not initialised. the init matrix function zeroes all elements of a matrix.
+ex :
+init_matrix(m);
+
+or you can set the elements to a fixed value with the init_matrix_c (init matrix to complex value) function.
+__complex__ double a = 4 + 3i;
+init_matrix_c(m,a);
+
+init_matrix_n function sets the real parts of the elements to the given value.
+init_matrix_n(m,3.17);
+
+or you can set the matrix to a predefined matrix, currently, hadamard gate (for a 2 by 2 matrix) and CNOT gate (for a 4 by 4 matrix) are available
+init_hadamard(m);
+init_CNOT(m);
+
+how to set matrix values by hand :
+
+you can reach the elements in a matrix with the 'value' pointer in the matrix. You have to provide row and column numbers.
+matrix * m2 = create_matrix(4,1);
+m2->value[0][0]=1;
+m2->value[1][0]=2;
+m2->value[2][0]=3;
+m2->value[3][0]=4;
+
+this matrix is a vector containing :
+1
+2
+3
+4
+
+how to print a matrix :
+
+simply, with the print_matrix function.
+print_matrix (m2);
+
+How to create a quantum register :
+
+a quantum register with n qubits is a vector with 2overn dimensions. When creating a quantum register with
+create_qubit function, you provide the size of the register with the first parameter, and then provide the value (an integer value) which the register will hold as its initial value.
+ex :
+m = create_qubit (2,3);
+will create a 1x4 matrix with
+0
+0
+0
+1
+
+as it's initial value. 3 is represented as 11 in binary, so both qubits should keep 1.
+m = create_qubit (2,0);
+will create
+1
+0
+0
+0
+
+providing a larger value than the register can hold will result in an error.
+
+Deconstructor
+
+~matrix() function will destroy a matrix, freeing all the memory allocated.
+
+Matrix Operations
+
+tensor product :
+returns a pointer to a matrix which is the tensor product of two given matrices.
+The original matrices are kept untouched.
+Ex:
+matrix * m3 ;
+m3 = tensor_product(m1,m2);
+
+dot_product :
+returns a pointer to a matrix which is the dot product of two given matrices.
+The original matrices are kept untouched.
+Ex:
+matrix * m3 ;
+m3 = dot_product(m1,m2);
+
+Matrix Transmission functions :
+There are three functions for easy transmission of matrices within the lam-mpi environment.
+Sending a matrix :
+send_matrix sends a matrix to a specified node.
+Ex:
+send_matrix(m2,2);
+
+Receiving a matrix :
+get_matrix gets a matrix from the specified function.
+Ex:
+matrix * m = get_matrix(0);
+
+Broadcasting a matrix :
+broadcasts a matrix. The first argument is a pointer to the matrix to be sent (this can be (should be) a null pointer
+for the nodes who will receive the matrix, and a pointer to an actual matrix for the node who will send the matrix) the second
+argument is the rank of the node, and the last argument is the rank of the node who will make the broadcast.
+Ex:
+matrix * m2;
+if(rank == 0)
+{
+	m2 = create_matrix (4,4);
+	__complex__ double a = 4 + 3i;
+	init_matrix_c(m2,a);
+}
+m2 = broadcast_matrix(m2,rank,0);
+printf("rank %d received matrix :\n",rank);
+print_matrix(m2);
+
+
+
